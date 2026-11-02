@@ -1,0 +1,33 @@
+# Credentials & Keys
+*.key
+*.priv
+*.pem
+*credentials*
+*secret*
+*seed*
+*.env
+*.env.*
+*.keystore
+
+# Accounts & Sensitive configuration
+accounts.json
+
+# Claim & test argument files
+claim*.json
+attack-claim.json
+setup*.json
+mark-done*.json
+test-*.json
+init-args.json
+empty.json
+
+# Build artifacts & dependencies
+target/
+**/target/
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+
+# Logs & temporary files
+*.log

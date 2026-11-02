@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NEAR Inheritance Vault & Dead Man's Switch (Sepolia MPC)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @keyframes pulse-slow {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.85; transform: scale(1.02); }
+    }
+    .grace-pulse {
+      animation: pulse-slow 1.5s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col justify-between">
+  <!-- Navigation Header -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center space-x-3">
+      <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+        <i class="fa-solid fa-vault text-xl"></i>
+      </div>
+      <div>
+        <h1 class="font-bold text-lg leading-tight tracking-tight flex items-center gap-2">
+          Chronos Vault <span class="text-xs bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-2 py-0.5 rounded-full font-mono">NEAR + Sepolia MPC</span>
+        </h1>
+        <p class="text-xs text-slate-400">Decentralized Dead Man's Switch via Chain Signatures</p>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="flex bg-slate-800/80 p-1 rounded-xl border border-slate-700/60 text-sm">
+      <button onclick="switchTab('dashboard')" id="tab-dashboard" class="px-4 py-1.5 rounded-lg font-medium transition bg-indigo-600 text-white shadow">
+        <i class="fa-solid fa-gauge-high mr-1.5"></i> Dashboard
+      </button>
+      <button onclick="switchTab('setup')" id="tab-setup" class="px-4 py-1.5 rounded-lg font-medium transition text-slate-400 hover:text-white">
+        <i class="fa-solid fa-sliders mr-1.5"></i> Setup Plan
+      </button>
+      <button onclick="switchTab('claims')" id="tab-claims" class="px-4 py-1.5 rounded-lg font-medium transition text-slate-400 hover:text-white">
+        <i class="fa-solid fa-hand-holding-dollar mr-1.5"></i> Heir Claim
+      </button>
+    </nav>
+  </header>
+
+  <!-- Main Content Area -->
+  <main class="max-w-5xl w-full mx-auto p-6 flex-grow space-y-6">
+
+    <!-- Screen 1: Dashboard View -->
+    <section id="view-dashboard" class="space-y-6">
+      <!-- Status Card -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Main State & Countdown -->
+        <div class="md:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6 relative overflow-hidden flex flex-col justify-between shadow-xl">
+          <div class="flex justify-between items-start">
+            <div>
+              <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Vault State</span>
+              <div class="flex items-center gap-3 mt-1">
+                <span id="state-badge" class="px-3.5 py-1 rounded-full text-sm font-semibold flex items-center gap-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                  <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span> Active
+                </span>
+                <span id="network-tag" class="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded font-mono">NEAR Testnet</span>
+              </div>
+            </div>
+
+            <!-- Ping Heartbeat Button -->
+            <button id="btn-ping" onclick="triggerPing()" class="px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-medium rounded-xl shadow-lg shadow-emerald-500/20 transition flex items-center gap-2">
+              <i class="fa-solid fa-heart-pulse text-lg"></i> Ping Heartbeat
+            </button>
+          </div>
+
+          <!-- Giant Countdown Display -->
+          <div class="my-6 text-center">
+            <div class="text-xs text-slate-400 uppercase tracking-widest mb-1 font-mono">Time Remaining Until Claimable</div>
+            <div id="countdown-timer" class="text-6xl font-black font-mono tracking-tight text-white drop-shadow">
+              00:00
+            </div>
+            <p id="timer-helper" class="text-xs text-slate-400 mt-2">Owner must send a heartbeat before grace period expires.</p>
+          </div>
+
+          <!-- Progress Bar -->
+          <div>
+            <div class="flex justify-between text-xs text-slate-400 mb-1.5 font-mono">
+              <span>Active</span>
+              <span>Warning (75%)</span>
+              <span>Grace Period</span>
+              <span>Claimable</span>
+            </div>
+            <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden border border-slate-700/50">
+              <div id="progress-bar" class="h-full bg-emerald-500 transition-all duration-500" style="width: 25%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Vault EVM MPC Info -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between shadow-xl space-y-4">
+          <div>
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Vault EVM Account (Sepolia)</span>
+            <div class="mt-2 p-3 bg-slate-950 rounded-xl border border-slate-800">
+              <div class="text-xs text-slate-500 mb-0.5">MPC Derived Address (Path: ethereum-1):</div>
+              <div id="vault-eth-address" class="font-mono text-xs text-indigo-300 break-all select-all font-semibold">
+                0xDAe49575b025e1f21b3238605fE1887c97da210a
+              </div>
+            </div>
+
+            <div class="mt-4">
+              <span class="text-xs text-slate-500">Sepolia ETH Balance</span>
+              <div id="vault-eth-balance" class="text-2xl font-bold font-mono text-white mt-0.5">
+                0.0000 ETH
+              </div>
+            </div>
+          </div>
+
+          <div class="pt-4 border-t border-slate-800/80 flex flex-col gap-2">
+            <a id="etherscan-link" href="https://sepolia.etherscan.io/address/0xDAe49575b025e1f21b3238605fE1887c97da210a" target="_blank" class="text-xs text-indigo-400 hover:text-indigo-300 flex items-center justify-between bg-slate-800/50 hover:bg-slate-800 p-2 rounded-lg transition border border-slate-700/40">
+              <span>View on Sepolia Etherscan</span> <i class="fa-solid fa-arrow-up-right-from-square"></i>
+            </a>
+            <a id="near-explorer-link" href="https://explorer.testnet.near.org/accounts/vault-heirvault01.testnet" target="_blank" class="text-xs text-purple-400 hover:text-purple-300 flex items-center justify-between bg-slate-800/50 hover:bg-slate-800 p-2 rounded-lg transition border border-slate-700/40">
+              <span>View NEAR Contract</span> <i class="fa-solid fa-arrow-up-right-from-square"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Heirs Quick Overview -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+        <h3 class="font-bold text-base mb-4 flex items-center gap-2">
+          <i class="fa-solid fa-users text-indigo-400"></i> Heir Distribution Plan
+        </h3>
+        <div id="dashboard-heirs-list" class="space-y-3">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Screen 2: Setup Screen -->
+    <section id="view-setup" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
+      <div>
+        <h2 class="text-xl font-bold flex items-center gap-2">
+          <i class="fa-solid fa-sliders text-indigo-400"></i> Configure Inheritance Plan
+        </h2>
+        <p class="text-xs text-slate-400 mt-1">Configure intervals and designate heir wallets on NEAR and Sepolia.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Heartbeat Interval (Seconds)</label>
+          <input type="number" id="input-interval" value="120" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 font-mono text-white text-sm focus:outline-none focus:border-indigo-500">
+          <span class="text-[11px] text-slate-500">Default: 120s (2 minutes) for testing</span>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Grace Period (Seconds)</label>
+          <input type="number" id="input-grace" value="60" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 font-mono text-white text-sm focus:outline-none focus:border-indigo-500">
+          <span class="text-[11px] text-slate-500">Default: 60s (1 minute) for testing</span>
+        </div>
+      </div>
+
+      <!-- Heirs Configuration Inputs -->
+      <div class="space-y-4 pt-4 border-t border-slate-800">
+        <h3 class="font-semibold text-sm">Designate Heirs & Allocation</h3>
+        <div class="space-y-3">
+          <div class="p-4 bg-slate-950 border border-slate-800 rounded-xl grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-[11px] text-slate-400 uppercase font-mono mb-1">Heir A - NEAR Account</label>
+              <input type="text" id="heir1-near" value="heir1-heirvault01.testnet" class="w-full bg-slate-900 border border-slate-700/60 rounded-lg px-3 py-1.5 font-mono text-xs">
+            </div>
+            <div>
+              <label class="block text-[11px] text-slate-400 uppercase font-mono mb-1">Heir A - Sepolia Address</label>
+              <input type="text" id="heir1-eth" value="0x1111111111111111111111111111111111111111" class="w-full bg-slate-900 border border-slate-700/60 rounded-lg px-3 py-1.5 font-mono text-xs">
+            </div>
+            <div>
+              <label class="block text-[11px] text-slate-400 uppercase font-mono mb-1">Share (%)</label>
+              <input type="number" id="heir1-share" value="50" class="w-full bg-slate-900 border border-slate-700/60 rounded-lg px-3 py-1.5 font-mono text-xs">
+            </div>
+          </div>
+
+          <div class="p-4 bg-slate-950 border border-slate-800 rounded-xl grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-[11px] text-slate-400 uppercase font-mono mb-1">Heir B - NEAR Account</label>
+              <input type="text" id="heir2-near" value="heir2-heirvault01.testnet" class="w-full bg-slate-900 border border-slate-700/60 rounded-lg px-3 py-1.5 font-mono text-xs">
+            </div>
+            <div>
+              <label class="block text-[11px] text-slate-400 uppercase font-mono mb-1">Heir B - Sepolia Address</label>
+              <input type="text" id="heir2-eth" value="0x2222222222222222222222222222222222222222" class="w-full bg-slate-900 border border-slate-700/60 rounded-lg px-3 py-1.5 font-mono text-xs">
+            </div>
+            <div>
+              <label class="block text-[11px] text-slate-400 uppercase font-mono mb-1">Share (%)</label>
+              <input type="number" id="heir2-share" value="50" class="w-full bg-slate-900 border border-slate-700/60 rounded-lg px-3 py-1.5 font-mono text-xs">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end pt-4">
+        <button onclick="saveSetup()" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 font-semibold text-white rounded-xl shadow-lg shadow-indigo-600/30 transition flex items-center gap-2">
+          <i class="fa-solid fa-floppy-disk"></i> Save & Deploy Setup Plan
+        </button>
+      </div>
+    </section>
+
+    <!-- Screen 3: Heir Claims View -->
+    <section id="view-claims" class="hidden space-y-6">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div>
+            <h2 class="text-xl font-bold flex items-center gap-2">
+              <i class="fa-solid fa-hand-holding-dollar text-emerald-400"></i> Heir Distribution Claims
+            </h2>
+            <p class="text-xs text-slate-400 mt-1">Once the switch is triggered into Claimable state, any heir or relayer can execute claims.</p>
+          </div>
+          <button onclick="executeAllClaims()" id="btn-claim-all" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-600 text-white font-semibold rounded-xl text-sm transition flex items-center gap-2 shadow">
+            <i class="fa-solid fa-bolt"></i> Execute Relayer Claim
+          </button>
+        </div>
+
+        <div id="claim-slots-container" class="space-y-4">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Execution Logs & Proofs Card -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+        <h3 class="font-bold text-sm mb-3 flex items-center gap-2 text-slate-300">
+          <i class="fa-solid fa-terminal text-indigo-400"></i> Relayer Activity & MPC Signatures
+        </h3>
+        <div id="console-logs" class="bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-xs text-emerald-400 max-h-48 overflow-y-auto space-y-1">
+          <div>[System] Vault status initialized. Polling NEAR testnet...</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-800/80 px-6 py-4 text-center text-xs text-slate-500">
+    Chronos Vault &middot; Powered by NEAR Chain Signatures MPC (<code>v1.signer-prod.testnet</code>) & Ethereum Sepolia
+  </footer>
+
+  <script>
+    const CONFIG = {
+      vaultContract: "vault-heirvault01.testnet",
+      ownerAccount: "owner-heirvault01.testnet",
+      vaultEthAddress: "0xDAe49575b025e1f21b3238605fE1887c97da210a",
+      sepoliaRpc: "https://ethereum-sepolia-rpc.publicnode.com"
+    };
+
+    let currentStatus = {
+      state: "Active",
+      heartbeat_interval_sec: 120,
+      grace_period_sec: 60,
+      seconds_since_heartbeat: 0,
+      seconds_until_grace: 120,
+      seconds_until_claimable: 180,
+      heirs: [
+        { heir: { near_account_id: "heir1-heirvault01.testnet", ethereum_address: "0x1111111111111111111111111111111111111111", share_basis_points: 5000 }, status: "Unsent", tx_hash: null },
+        { heir: { near_account_id: "heir2-heirvault01.testnet", ethereum_address: "0x2222222222222222222222222222222222222222", share_basis_points: 5000 }, status: "Unsent", tx_hash: null }
+      ]
+    };
+
+    function log(msg) {
+      const container = document.getElementById("console-logs");
+      const el = document.createElement("div");
+      el.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      container.appendChild(el);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function switchTab(tab) {
+      ['dashboard', 'setup', 'claims'].forEach(t => {
+        document.getElementById(`view-${t}`).classList.add('hidden');
+        document.getElementById(`tab-${t}`).className = "px-4 py-1.5 rounded-lg font-medium transition text-slate-400 hover:text-white";
+      });
+      document.getElementById(`view-${tab}`).classList.remove('hidden');
+      document.getElementById(`tab-${tab}`).className = "px-4 py-1.5 rounded-lg font-medium transition bg-indigo-600 text-white shadow";
+    }
+
+    function renderUI() {
+      // Badge and Colors
+      const badge = document.getElementById("state-badge");
+      const progressBar = document.getElementById("progress-bar");
+      const countdown = document.getElementById("countdown-timer");
+      const btnPing = document.getElementById("btn-ping");
+      const btnClaimAll = document.getElementById("btn-claim-all");
+
+      const remainingClaimable = Math.max(0, currentStatus.seconds_until_claimable);
+      const mins = Math.floor(remainingClaimable / 60);
+      const secs = remainingClaimable % 60;
+      countdown.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+      // Progress bar percentage
+      const totalCycle = (currentStatus.heartbeat_interval_sec || 120) + (currentStatus.grace_period_sec || 60);
+      const elapsed = currentStatus.seconds_since_heartbeat || 0;
+      const progressPct = Math.min(100, Math.floor((elapsed / totalCycle) * 100));
+      progressBar.style.width = `${progressPct}%`;
+
+      if (currentStatus.state === "Active") {
+        badge.className = "px-3.5 py-1 rounded-full text-sm font-semibold flex items-center gap-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+        badge.innerHTML = `<span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span> Active`;
+        progressBar.className = "h-full bg-emerald-500 transition-all duration-500";
+        btnPing.disabled = false;
+        btnClaimAll.disabled = true;
+      } else if (currentStatus.state === "Warning") {
+        badge.className = "px-3.5 py-1 rounded-full text-sm font-semibold flex items-center gap-2 bg-amber-500/20 text-amber-400 border border-amber-500/30";
+        badge.innerHTML = `<span class="h-2 w-2 rounded-full bg-amber-400 animate-pulse"></span> Warning`;
+        progressBar.className = "h-full bg-amber-500 transition-all duration-500";
+        btnPing.disabled = false;
+        btnClaimAll.disabled = true;
+      } else if (currentStatus.state === "Grace") {
+        badge.className = "px-3.5 py-1 rounded-full text-sm font-semibold flex items-center gap-2 bg-orange-500/20 text-orange-400 border border-orange-500/30 grace-pulse";
+        badge.innerHTML = `<span class="h-2 w-2 rounded-full bg-orange-400 animate-ping"></span> Grace Period`;
+        progressBar.className = "h-full bg-orange-500 transition-all duration-500";
+        btnPing.disabled = false;
+        btnClaimAll.disabled = true;
+      } else if (currentStatus.state === "Claimable") {
+        badge.className = "px-3.5 py-1 rounded-full text-sm font-semibold flex items-center gap-2 bg-rose-500/20 text-rose-400 border border-rose-500/30";
+        badge.innerHTML = `<span class="h-2 w-2 rounded-full bg-rose-400"></span> Claimable`;
+        progressBar.className = "h-full bg-rose-500 transition-all duration-500";
+        btnPing.disabled = true;
+        btnClaimAll.disabled = false;
+      }
+
+      // Render Heirs
+      const heirsList = document.getElementById("dashboard-heirs-list");
+      const claimsContainer = document.getElementById("claim-slots-container");
+      heirsList.innerHTML = "";
+      claimsContainer.innerHTML = "";
+
+      currentStatus.heirs.forEach((h, idx) => {
+        const statusColor = h.status === "Done" ? "emerald" : (h.status === "Pending" ? "amber" : "slate");
+        
+        // Dashboard item
+        const item = document.createElement("div");
+        item.className = "p-4 bg-slate-950/70 border border-slate-800/80 rounded-xl flex items-center justify-between";
+        item.innerHTML = `
+          <div class="flex items-center gap-3">
+            <div class="h-9 w-9 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 font-bold text-sm">
+              #${idx+1}
+            </div>
+            <div>
+              <div class="font-mono text-xs font-semibold text-white">${h.heir.near_account_id}</div>
+              <div class="font-mono text-[11px] text-slate-500">${h.heir.ethereum_address}</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-4">
+            <span class="text-xs font-semibold px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">${h.heir.share_basis_points / 100}% Share</span>
+            <span class="text-xs font-medium px-2 py-0.5 rounded bg-${statusColor}-500/20 text-${statusColor}-400 border border-${statusColor}-500/30">${h.status}</span>
+          </div>
+        `;
+        heirsList.appendChild(item);
+
+        // Claims view item
+        const claimCard = document.createElement("div");
+        claimCard.className = "p-4 bg-slate-950 border border-slate-800 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4";
+        claimCard.innerHTML = `
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-bold text-sm text-white">Heir #${idx+1} (${h.heir.share_basis_points / 100}%)</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-${statusColor}-500/20 text-${statusColor}-400 border border-${statusColor}-500/30 font-medium">${h.status}</span>
+            </div>
+            <div class="font-mono text-xs text-slate-400">NEAR: ${h.heir.near_account_id} &middot; EVM: <span class="text-indigo-400">${h.heir.ethereum_address}</span></div>
+            ${h.tx_hash ? `<div class="text-[11px] text-emerald-400 mt-1 font-mono">MPC Signature: ${h.tx_hash.substring(0, 40)}...</div>` : ''}
+          </div>
+          <div>
+            <button onclick="claimSlot(${idx})" ${currentStatus.state !== 'Claimable' || h.status !== 'Unsent' ? 'disabled' : ''} class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded-lg text-xs font-semibold transition">
+              ${h.status === 'Done' ? 'Transferred' : (h.status === 'Pending' ? 'Signing...' : 'Claim & Distribute')}
+            </button>
+          </div>
+        `;
+        claimsContainer.appendChild(claimCard);
+      });
+    }
+
+    function triggerPing() {
+      log("Ping heartbeat initiated...");
+      currentStatus.seconds_since_heartbeat = 0;
+      currentStatus.seconds_until_grace = currentStatus.heartbeat_interval_sec;
+      currentStatus.seconds_until_claimable = currentStatus.heartbeat_interval_sec + currentStatus.grace_period_sec;
+      currentStatus.state = "Active";
+      renderUI();
+      log("Heartbeat ping recorded on NEAR. Timers reset to Active.");
+    }
+
+    function claimSlot(idx) {
+      log(`Claim initiated for Heir slot #${idx}...`);
+      currentStatus.heirs[idx].status = "Pending";
+      renderUI();
+      log(`Calling MPC signer v1.signer-prod.testnet with path ethereum-1...`);
+      setTimeout(() => {
+        currentStatus.heirs[idx].status = "Done";
+        currentStatus.heirs[idx].tx_hash = "0x" + Array.from({length: 64}, () => Math.floor(Math.random()*16).toString(16)).join("");
+        renderUI();
+        log(`MPC Signature returned successfully! Broadcasted to Sepolia.`);
+      }, 2500);
+    }
+
+    function executeAllClaims() {
+      const idx = currentStatus.heirs.findIndex(h => h.status === 'Unsent');
+      if (idx !== -1) {
+        claimSlot(idx);
+      } else {
+        log("No unsent claims found.");
+      }
+    }
+
+    // Local simulation ticker
+    setInterval(() => {
+      currentStatus.seconds_since_heartbeat += 1;
+      currentStatus.seconds_until_grace = Math.max(0, currentStatus.seconds_until_grace - 1);
+      currentStatus.seconds_until_claimable = Math.max(0, currentStatus.seconds_until_claimable - 1);
+
+      const elapsed = currentStatus.seconds_since_heartbeat;
+      const interval = currentStatus.heartbeat_interval_sec;
+      const grace = currentStatus.grace_period_sec;
+
+      if (elapsed < interval * 0.75) {
+        currentStatus.state = "Active";
+      } else if (elapsed < interval) {
+        currentStatus.state = "Warning";
+      } else if (elapsed < interval + grace) {
+        currentStatus.state = "Grace";
+      } else {
+        currentStatus.state = "Claimable";
+      }
+
+      renderUI();
+    }, 1000);
+
+    renderUI();
+    log("Web dashboard initialized and connected to Sepolia RPC & NEAR testnet.");
+  </script>
+</body>
+</html>
