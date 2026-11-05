@@ -1,5 +1,5 @@
 {
-  "name": "new",
+  "name": "ember-protocol",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -12,7 +12,13 @@
   },
   "dependencies": {
     "@aptos-labs/ts-sdk": "^2.0.1",
+    "@hot-labs/near-connect": "^0.12.0",
     "@mysten/sui": "^1.30.4",
+    "@noble/curves": "^1.9.7",
+    "@noble/hashes": "^1.8.0",
+    "@solana/web3.js": "^1.98.4",
+    "bech32": "^2.0.0",
+    "bitcoinjs-lib": "^6.1.10",
     "chainsig.js": "^1.1.8",
     "ethers": "^6.11.1",
     "near-api-js": "^7.4.0",
@@ -21,19 +27,17 @@
     "react-dom": "^18.2.0",
     "react-select": "^5.10.1",
     "viem": "^2.28.1",
-    "web3": "^4.6.0",
-    "@hot-labs/near-connect": "^0.12.0",
-    "@solana/web3.js": "^1.98.4"
+    "web3": "^4.6.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.64",
     "@types/react-dom": "^18.2.21",
+    "@vitejs/plugin-react": "^4.2.1",
     "eslint": "^8.57.0",
     "eslint-plugin-react": "^7.34.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
     "vite": "^5.1.6",
-    "@vitejs/plugin-react": "^4.2.1",
     "vite-plugin-node-polyfills": "^0.21.0"
   },
   "engines": {

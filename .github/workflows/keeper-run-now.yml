@@ -1,0 +1,35 @@
+name: Keeper Run Now (testnet)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keeper-run-now
+  cancel-in-progress: false
+
+jobs:
+  keeper:
+    name: Process eligible testnet records
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      EMBER_CONTRACT_ID: ${{ vars.EMBER_CONTRACT_ID }}
+      EMBER_KEEPER_ACCOUNT_ID: ${{ vars.EMBER_KEEPER_ACCOUNT_ID }}
+      EMBER_KEEPER_PRIVATE_KEY: ${{ secrets.EMBER_KEEPER_PRIVATE_KEY }}
+      EMBER_KEEPER_EXECUTE: "1"
+      EMBER_KEEPER_MAX_RECORDS: "1"
+      NEAR_RPC_URL: https://rpc.testnet.near.org
+      EMBER_SEPOLIA_RPC_URL: https://ethereum-sepolia-rpc.publicnode.com
+      EMBER_BTC_TESTNET_API: https://mempool.space/testnet/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run keeper once
+        run: node scripts/keeper-run-now.mjs
