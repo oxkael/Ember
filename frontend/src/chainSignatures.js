@@ -47,6 +47,16 @@ export function deriveBitcoinTestnetAddress(uncompressedPublicKey) {
   return bech32.encode('tb', [0, ...bech32.toWords(witnessProgram)]);
 }
 
+/** Rebuild a native Bitcoin Testnet P2WPKH address from the 20-byte value stored by the contract. */
+export function bitcoinTestnetWitnessProgramToAddress(value) {
+  const hex = String(value || '').trim().replace(/^0x/i, '');
+  if (!/^[0-9a-fA-F]{40}$/.test(hex)) {
+    throw new Error('The saved Bitcoin destination is not a valid 20-byte witness program.');
+  }
+  const program = Uint8Array.from(hex.match(/.{2}/g), (byte) => Number.parseInt(byte, 16));
+  return bech32.encode('tb', [0, ...bech32.toWords(program)]);
+}
+
 /** Convert a native Bitcoin Testnet P2WPKH address into the 20-byte program stored by the contract. */
 export function bitcoinTestnetAddressToWitnessProgram(address) {
   let decoded;

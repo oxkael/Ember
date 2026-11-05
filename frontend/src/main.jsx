@@ -1,6 +1,7 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { NEAR_NETWORK, VAULT_ACCOUNT_ID } from './config.js';
+import { bitcoinTestnetWitnessProgramToAddress } from './chainSignatures.js';
 import SetupForm from './SetupForm.jsx';
 import { deriveVaultDepositAddresses, pingVault, readVaultStatus } from './vaultClient.js';
 import './styles.css';
@@ -36,12 +37,12 @@ function ChainIllustration() {
   </div>;
 }
 
-function Landing({ onConnect, connecting, error }) {
+function Landing({ onConnect, connecting, restoringWallet, error }) {
   return <div className="landing-page">
     <header className="landing-nav">
       <a className="wordmark" href="#top"><Mark /><span>ember<small>PROTOCOL</small></span></a>
       <nav className="landing-links" aria-label="Page navigation"><a href="#how-it-works">How it works</a><a href="#why-near">Why NEAR</a><a href="#faq">FAQs</a></nav>
-      <button className="nav-connect" onClick={onConnect} disabled={connecting}>{connecting ? 'Connecting…' : 'Connect wallet'} <Arrow /></button>
+      <button className="nav-connect" onClick={onConnect} disabled={connecting || restoringWallet}>{restoringWallet ? 'Checking wallet…' : connecting ? 'Connecting…' : 'Connect wallet'} <Arrow /></button>
     </header>
 
     <main id="top">
@@ -50,7 +51,7 @@ function Landing({ onConnect, connecting, error }) {
           <div className="hero-eyebrow"><span /> A BACKUP PLAN FOR YOUR DIGITAL ASSETS</div>
           <h1>Your assets deserve<br />a <em>plan B.</em></h1>
           <p className="hero-description">Ember helps you prepare for lost access, emergencies, or time away—with a check-in plan and destinations across Bitcoin and Ethereum.</p>
-          <div className="hero-actions"><button className="button-primary" onClick={onConnect} disabled={connecting}>{connecting ? 'Connecting to NEAR…' : 'Connect NEAR wallet'} <Arrow /></button><a className="text-link" href="#how-it-works">Explore how it works <span><Arrow diagonal /></span></a></div>
+          <div className="hero-actions"><button className="button-primary" onClick={onConnect} disabled={connecting || restoringWallet}>{restoringWallet ? 'Checking wallet session…' : connecting ? 'Connecting to NEAR…' : 'Connect NEAR wallet'} <Arrow /></button><a className="text-link" href="#how-it-works">Explore how it works <span><Arrow diagonal /></span></a></div>
           <p className="hero-footnote">NEAR Testnet preview <span>·</span> Wallet connection loads the current plan</p>
           {error && <div className="connect-error" role="alert">{error}</div>}
         </div>
@@ -149,7 +150,7 @@ function Dashboard({ account, wallet, status, vaultId, loading, checkingIn, erro
       <div className="dashboard-heading"><div><span className="eyebrow-label">YOUR BACKUP PLAN</span><h1>A little more peace of mind.</h1><p>Live read from <code>{vaultId || VAULT_ACCOUNT_ID}</code></p></div><button className="reload-button" onClick={onReload} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh plan'}</button></div>
       <section className="deposit-addresses" aria-labelledby="deposit-addresses-title">
         <div className="deposit-addresses-heading"><div><span className="eyebrow-label">NEAR CHAIN SIGNATURES</span><h2 id="deposit-addresses-title">Your testnet deposit addresses</h2></div><span className="read-only-badge">DERIVED IN BROWSER</span></div>
-        <p className="deposit-addresses-intro">These addresses are derived from this shared contract and your connected NEAR account. No setup transaction is needed to derive them.</p>
+        <p className="deposit-addresses-intro">NEAR Chain Signatures supplies the MPC public key used for these Bitcoin and Ethereum addresses. Ember computes them in your browser from that key, this contract, your connected NEAR account, and each chain’s derivation path. No setup transaction is needed to derive an address; sending funds later requires an MPC signature request through the contract.</p>
         {depositAddresses ? <div className="deposit-address-grid">
           <article className="deposit-address-item"><span>ETHEREUM · SEPOLIA</span><code>{depositAddresses.ethereum.address}</code><small>Path: {depositAddresses.ethereum.path}</small></article>
           <article className="deposit-address-item"><span>BITCOIN · TESTNET</span><code>{depositAddresses.bitcoin.address}</code><small>Path: {depositAddresses.bitcoin.path}</small></article>
@@ -177,7 +178,23 @@ function Dashboard({ account, wallet, status, vaultId, loading, checkingIn, erro
           </div>
         </section>
         <div className="dashboard-section-title"><div><span className="eyebrow-label">YOUR SELECTED DESTINATIONS</span><h2>Where the plan points</h2></div><span className="destination-count">{destinations.length} {destinations.length === 1 ? 'destination' : 'destinations'}</span></div>
-        <section className="dashboard-destinations">{destinations.length ? destinations.map((slot, index) => <article className="dashboard-destination" key={`${slot.heir?.near_account_id || index}`}><div className="destination-avatar">{String(index + 1).padStart(2, '0')}</div><div className="dashboard-destination-info"><span className="eyebrow-label">DESTINATION {String(index + 1).padStart(2, '0')}</span><strong>{slot.heir?.near_account_id || 'NEAR account not set'}</strong><small>{slot.heir?.ethereum_address || 'Ethereum address not set'}</small></div><span className="share-pill">{(Number(slot.heir?.share_basis_points) || 0) / 100}% share</span><span className={`slot-status slot-${enumValue(slot.status).toLowerCase()}`}>{deliveryLabel(slot.status)}</span></article>) : <div className="dashboard-empty"><h3>No destinations are configured</h3><p>This contract does not have a backup plan set up yet.</p></div>}</section>
+        <section className="dashboard-destinations">{destinations.length ? destinations.map((slot, index) => {
+          let bitcoinAddress = 'Bitcoin Testnet address not set';
+          try {
+            if (slot.heir?.bitcoin_witness_program) {
+              bitcoinAddress = bitcoinTestnetWitnessProgramToAddress(slot.heir.bitcoin_witness_program);
+            }
+          } catch {
+            bitcoinAddress = 'Saved Bitcoin destination could not be decoded';
+          }
+          return <article className="dashboard-destination" key={`${slot.heir?.near_account_id || index}`}>
+            <div className="destination-avatar">{String(index + 1).padStart(2, '0')}</div>
+            <div className="dashboard-destination-main">
+              <div className="dashboard-destination-heading"><div className="dashboard-destination-info"><span className="eyebrow-label">DESTINATION {String(index + 1).padStart(2, '0')}</span><strong>{slot.heir?.near_account_id || 'NEAR account not set'}</strong></div><span className="share-pill">{(Number(slot.heir?.share_basis_points) || 0) / 100}% share</span><span className={`slot-status slot-${enumValue(slot.status).toLowerCase()}`}>{deliveryLabel(slot.status)}</span></div>
+              <div className="destination-chain-addresses"><div><span>ETHEREUM · SEPOLIA</span><code>{slot.heir?.ethereum_address || 'Ethereum address not set'}</code></div><div><span>BITCOIN · TESTNET</span><code>{bitcoinAddress}</code></div></div>
+            </div>
+          </article>;
+        }) : <div className="dashboard-empty"><h3>No destinations are configured</h3><p>This contract does not have a backup plan set up yet.</p></div>}</section>
         <section className="dashboard-tech-note"><span className="near-trust-icon">N</span><p><strong>Coordinated by NEAR Chain Signatures</strong><span>Plan state is read from NEAR Testnet. Setup and check-ins are signed by your connected wallet.</span></p><span className="dashboard-chain-tags"><i>BTC</i><i>ETH</i></span></section>
       </>}
       {!loading && !status && <SetupForm account={account} wallet={wallet} depositAddresses={depositAddresses} onComplete={onSetupComplete} />}
@@ -199,9 +216,11 @@ function App() {
   const [error, setError] = useState('');
   const [actionError, setActionError] = useState('');
   const [screen, setScreen] = useState('landing');
-  const [vaultId, setVaultId] = useState(VAULT_ACCOUNT_ID);
+  const vaultId = VAULT_ACCOUNT_ID;
+  const [restoringWallet, setRestoringWallet] = useState(true);
 
-  const loadStatus = useCallback(async (ownerId = account) => {
+  const loadStatus = useCallback(async (ownerId) => {
+    if (!ownerId) return;
     setLoading(true);
     setError('');
     try {
@@ -209,7 +228,7 @@ function App() {
     }
     catch (cause) { setStatus(null); setError(cause instanceof Error ? cause.message : 'NEAR Testnet RPC request failed.'); }
     finally { setLoading(false); }
-  }, [account, vaultId]);
+  }, [vaultId]);
 
   const enterDashboard = useCallback(async (nextWallet, nextAccount) => {
     setWallet(nextWallet);
@@ -224,6 +243,29 @@ function App() {
       setAddressError(cause instanceof Error ? cause.message : 'Could not derive the testnet deposit addresses.');
     }
   }, [loadStatus, vaultId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const restoreWallet = async () => {
+      try {
+        const connectorInstance = await getConnector();
+        if (cancelled) return;
+        connectorRef.current = connectorInstance;
+        await connectorInstance.whenManifestLoaded;
+        const connection = await connectorInstance.getConnectedWallet();
+        const accountId = connection?.accounts?.[0]?.accountId;
+        if (!cancelled && connection?.wallet && accountId) {
+          await enterDashboard(connection.wallet, accountId);
+        }
+      } catch {
+        // No saved wallet session is normal; leave the connect screen available.
+      } finally {
+        if (!cancelled) setRestoringWallet(false);
+      }
+    };
+    restoreWallet();
+    return () => { cancelled = true; };
+  }, [enterDashboard]);
 
   const connect = async () => {
     setConnecting(true);
@@ -262,8 +304,8 @@ function App() {
   };
 
   return screen === 'dashboard' && account
-    ? <Dashboard account={account} wallet={wallet} status={status} vaultId={vaultId} loading={loading} checkingIn={checkingIn} error={error} actionError={actionError} depositAddresses={depositAddresses} addressError={addressError} onReload={loadStatus} onDisconnect={disconnect} onSetupComplete={loadStatus} onCheckIn={checkIn} />
-    : <Landing onConnect={connect} connecting={connecting} error={error} />;
+    ? <Dashboard account={account} wallet={wallet} status={status} vaultId={vaultId} loading={loading} checkingIn={checkingIn} error={error} actionError={actionError} depositAddresses={depositAddresses} addressError={addressError} onReload={() => loadStatus(account)} onDisconnect={disconnect} onSetupComplete={() => loadStatus(account)} onCheckIn={checkIn} />
+    : <Landing onConnect={connect} connecting={connecting} restoringWallet={restoringWallet} error={error} />;
 }
 
 createRoot(document.getElementById('root')).render(<React.StrictMode><App /></React.StrictMode>);
