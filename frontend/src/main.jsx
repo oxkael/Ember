@@ -125,11 +125,24 @@ function displayState(state) {
   return { raw, label: labels[raw] || raw };
 }
 
+function enumValue(value) {
+  return typeof value === 'string' ? value : Object.keys(value || {})[0] || 'Unknown';
+}
+
+function deliveryLabel(value) {
+  const raw = enumValue(value);
+  return raw === 'Done' ? 'Delivered (reported)' : raw;
+}
+
 function Dashboard({ account, wallet, status, vaultId, loading, checkingIn, error, actionError, depositAddresses, addressError, onReload, onDisconnect, onSetupComplete, onCheckIn }) {
   const state = status ? displayState(status.state) : null;
   const ownerMismatch = status && status.owner_id && status.owner_id !== account;
   const canCheckIn = status && !ownerMismatch && ['Active', 'Warning', 'Grace'].includes(state.raw);
   const destinations = status?.heirs || [];
+  const completedEthSlots = destinations.filter((slot) => enumValue(slot.status) === 'Done').length;
+  const distributionComplete = state?.raw === 'Claimable' && destinations.length > 0 &&
+    completedEthSlots === destinations.length && enumValue(status?.btc_slot?.status) === 'Done';
+  const visibleState = distributionComplete ? 'Distribution complete' : state?.label;
   return <div className="dashboard-page">
     <header className="dashboard-nav"><a className="wordmark dashboard-wordmark" href="#top"><Mark /><span>ember<small>PROTOCOL</small></span></a><div className="dashboard-nav-center"><span className="testnet-indicator" /> NEAR TESTNET <span className="nav-divider">/</span> YOUR PLAN</div><div className="wallet-menu"><span className="wallet-ident"><i />{shortAccount(account)}</span><button onClick={onDisconnect}>Disconnect</button></div></header>
     <main className="dashboard-content">
@@ -147,9 +160,24 @@ function Dashboard({ account, wallet, status, vaultId, loading, checkingIn, erro
       {loading && <div className="dashboard-loading"><span className="loading-ring" />Loading plan from NEAR Testnet…</div>}
       {!loading && status && <>
         {ownerMismatch && <div className="account-note">This contract is owned by <code>{status.owner_id}</code>. You are connected as <code>{account}</code>. This dashboard is read-only.</div>}
-        <section className="dashboard-state-card"><div className="state-card-top"><div><span className="eyebrow-label">PLAN STATUS</span><div className={`status-label status-${state.raw.toLowerCase()}`}><i />{state.label}</div></div><span className="read-only-badge">LIVE ON TESTNET</span></div><div className="state-card-bottom"><div><span className="dashboard-stat-label">Time to next state</span><strong>{formatTime(status.seconds_until_claimable)}</strong></div><div><span className="dashboard-stat-label">Check-in interval</span><strong>{Number(status.heartbeat_interval_sec) / 86400} days</strong></div><div><span className="dashboard-stat-label">Grace period</span><strong>{Number(status.grace_period_sec) / 86400} days</strong></div><button className="disabled-checkin" onClick={onCheckIn} disabled={!canCheckIn || loading || checkingIn} title={canCheckIn ? 'Submit a check-in from your connected NEAR account' : 'Check-in is available before the plan becomes ready for distribution'}>{checkingIn ? 'Checking in…' : 'Check in'}</button></div></section>
+        <section className={`dashboard-state-card${distributionComplete ? ' distribution-is-complete' : ''}`}>
+          <div className="state-card-top">
+            <div>
+              <span className="eyebrow-label">{distributionComplete ? 'DELIVERY STATUS' : 'PLAN STATUS'}</span>
+              <div className={`status-label status-${distributionComplete ? 'complete' : state.raw.toLowerCase()}`}><i />{visibleState}</div>
+              {distributionComplete && <p className="distribution-status-note">All ETH slots and the BTC slot are marked Delivered (reported). The contract remains in its distribution phase.</p>}
+            </div>
+            <span className="read-only-badge">LIVE ON TESTNET</span>
+          </div>
+          <div className="state-card-bottom">
+            <div><span className="dashboard-stat-label">{distributionComplete ? 'Contract phase' : 'Time to next state'}</span><strong>{distributionComplete ? 'Ready for distribution' : formatTime(status.seconds_until_claimable)}</strong></div>
+            <div><span className="dashboard-stat-label">Check-in interval</span><strong>{Number(status.heartbeat_interval_sec) / 86400} days</strong></div>
+            <div><span className="dashboard-stat-label">Grace period</span><strong>{Number(status.grace_period_sec) / 86400} days</strong></div>
+            <button className="disabled-checkin" onClick={onCheckIn} disabled={!canCheckIn || loading || checkingIn} title={canCheckIn ? 'Submit a check-in from your connected NEAR account' : 'Check-in is available before the plan becomes ready for distribution'}>{checkingIn ? 'Checking in…' : 'Check in'}</button>
+          </div>
+        </section>
         <div className="dashboard-section-title"><div><span className="eyebrow-label">YOUR SELECTED DESTINATIONS</span><h2>Where the plan points</h2></div><span className="destination-count">{destinations.length} {destinations.length === 1 ? 'destination' : 'destinations'}</span></div>
-        <section className="dashboard-destinations">{destinations.length ? destinations.map((slot, index) => <article className="dashboard-destination" key={`${slot.heir?.near_account_id || index}`}><div className="destination-avatar">{String(index + 1).padStart(2, '0')}</div><div className="dashboard-destination-info"><span className="eyebrow-label">DESTINATION {String(index + 1).padStart(2, '0')}</span><strong>{slot.heir?.near_account_id || 'NEAR account not set'}</strong><small>{slot.heir?.ethereum_address || 'Ethereum address not set'}</small></div><span className="share-pill">{(Number(slot.heir?.share_basis_points) || 0) / 100}% share</span><span className={`slot-status slot-${String(slot.status || '').toLowerCase()}`}>{slot.status || 'Unknown'}</span></article>) : <div className="dashboard-empty"><h3>No destinations are configured</h3><p>This contract does not have a backup plan set up yet.</p></div>}</section>
+        <section className="dashboard-destinations">{destinations.length ? destinations.map((slot, index) => <article className="dashboard-destination" key={`${slot.heir?.near_account_id || index}`}><div className="destination-avatar">{String(index + 1).padStart(2, '0')}</div><div className="dashboard-destination-info"><span className="eyebrow-label">DESTINATION {String(index + 1).padStart(2, '0')}</span><strong>{slot.heir?.near_account_id || 'NEAR account not set'}</strong><small>{slot.heir?.ethereum_address || 'Ethereum address not set'}</small></div><span className="share-pill">{(Number(slot.heir?.share_basis_points) || 0) / 100}% share</span><span className={`slot-status slot-${enumValue(slot.status).toLowerCase()}`}>{deliveryLabel(slot.status)}</span></article>) : <div className="dashboard-empty"><h3>No destinations are configured</h3><p>This contract does not have a backup plan set up yet.</p></div>}</section>
         <section className="dashboard-tech-note"><span className="near-trust-icon">N</span><p><strong>Coordinated by NEAR Chain Signatures</strong><span>Plan state is read from NEAR Testnet. Setup and check-ins are signed by your connected wallet.</span></p><span className="dashboard-chain-tags"><i>BTC</i><i>ETH</i></span></section>
       </>}
       {!loading && !status && <SetupForm account={account} wallet={wallet} depositAddresses={depositAddresses} onComplete={onSetupComplete} />}

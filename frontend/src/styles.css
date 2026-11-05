@@ -151,6 +151,10 @@ a { color: inherit; }
 .deposit-address-error { color: #B42318; }
 @media (max-width: 680px) { .deposit-addresses { padding: 21px 18px; } .deposit-addresses-heading { align-items: flex-start; flex-direction: column; } .deposit-address-grid { grid-template-columns: 1fr; } }
 
+.status-complete i { background: #1B7F4B; }
+.distribution-status-note { max-width: 610px; margin: 8px 0 0; color: #D5E7DF; font-size: 12px; line-height: 1.55; }
+@media (max-width: 700px) { .distribution-status-note { font-size: 10px; } }
+
 .setup-panel { margin: 34px 0 42px; padding: clamp(22px, 4vw, 36px); border: 1px solid #CAD8D1; border-radius: 14px; background: #FFFFFF; box-shadow: 0 12px 34px rgba(13, 54, 47, .055); }
 .setup-panel-heading, .setup-destinations-heading, .setup-submit-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
 .setup-panel-heading h2 { max-width: 650px; margin: 7px 0 0; color: #083D3B; font: 500 clamp(27px, 4vw, 38px)/1.08 var(--display); letter-spacing: -.02em; }
