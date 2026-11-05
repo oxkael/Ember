@@ -46,7 +46,7 @@ async function waitForStatus(ownerId, predicate, maxAttempts = 45) {
 async function assertKeeperKeyScoped() {
   const signer = keeperAccount.getSigner();
   const publicKey = await signer.getPublicKey();
-  const accessKey = await nearProvider.viewAccessKey(keeperId, publicKey.toString());
+  const accessKey = await nearProvider.viewAccessKey({ accountId: keeperId, publicKey });
   const permission = accessKey.permission;
   if (permission === "FullAccess" || !permission?.FunctionCall) {
     throw new Error("Keeper key must be a function-call access key scoped to the Ember contract.");
