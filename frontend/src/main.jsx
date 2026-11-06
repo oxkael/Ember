@@ -149,11 +149,10 @@ function Dashboard({ account, wallet, status, vaultId, loading, checkingIn, erro
     <main className="dashboard-content">
       <div className="dashboard-heading"><div><span className="eyebrow-label">YOUR BACKUP PLAN</span><h1>A little more peace of mind.</h1><p>Live read from <code>{vaultId || VAULT_ACCOUNT_ID}</code></p></div><button className="reload-button" onClick={onReload} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh plan'}</button></div>
       <section className="deposit-addresses" aria-labelledby="deposit-addresses-title">
-        <div className="deposit-addresses-heading"><div><span className="eyebrow-label">NEAR CHAIN SIGNATURES</span><h2 id="deposit-addresses-title">Your testnet deposit addresses</h2></div><span className="read-only-badge">DERIVED IN BROWSER</span></div>
-        <p className="deposit-addresses-intro">NEAR Chain Signatures supplies the MPC public key used for these Bitcoin and Ethereum addresses. Ember computes them in your browser from that key, this contract, your connected NEAR account, and each chain’s derivation path. No setup transaction is needed to derive an address; sending funds later requires an MPC signature request through the contract.</p>
+        <div className="deposit-addresses-heading"><div><span className="eyebrow-label">NEAR CHAIN SIGNATURES</span><h2 id="deposit-addresses-title">Your testnet deposit addresses</h2></div><span className="read-only-badge">POWERED BY NEAR MPC</span></div>
         {depositAddresses ? <div className="deposit-address-grid">
-          <article className="deposit-address-item"><span>ETHEREUM · SEPOLIA</span><code>{depositAddresses.ethereum.address}</code><small>Path: {depositAddresses.ethereum.path}</small></article>
-          <article className="deposit-address-item"><span>BITCOIN · TESTNET</span><code>{depositAddresses.bitcoin.address}</code><small>Path: {depositAddresses.bitcoin.path}</small></article>
+          <article className="deposit-address-item"><span>ETHEREUM · SEPOLIA</span><code>{depositAddresses.ethereum.address}</code></article>
+          <article className="deposit-address-item"><span>BITCOIN · TESTNET</span><code>{depositAddresses.bitcoin.address}</code></article>
         </div> : <p className={addressError ? 'deposit-address-error' : 'deposit-address-pending'} role={addressError ? 'alert' : undefined}>{addressError || 'Deriving addresses…'}</p>}
       </section>
       {error && <div className="dashboard-alert" role="alert"><strong>Could not load this plan.</strong> {error}<button onClick={onReload}>Try again</button></div>}
