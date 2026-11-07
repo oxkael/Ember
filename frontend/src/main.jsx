@@ -7,6 +7,7 @@ import { readBitcoinBalance, readEthereumBalance } from './balanceClient.js';
 import { checkReportedTransaction } from './confirmationClient.js';
 import { cancelPendingPlanChange, deriveVaultDepositAddresses, pingVault, proposeWithdrawalDestinations, readVaultStatus } from './vaultClient.js';
 import { broadcastBtcWithdrawal, broadcastEthWithdrawal, getBtcWithdrawalPreview, getEthWithdrawalPreview, requestBtcWithdrawal, requestEthWithdrawal, storeEthWithdrawalSession } from './withdrawalClient.js';
+import { canOwnerWithdraw, isMaturedPlanChange } from './withdrawalState.js';
 import './styles.css';
 
 let connectorPromise;
@@ -98,7 +99,7 @@ function Landing({ onConnect, connecting, restoringWallet, error }) {
           <details><summary>Who is this for?<span className="faq-plus" /></summary><p>Anyone who wants a backup route for their digital assets—whether that means planning for a loss of access, an emergency, a long absence, or a personal recovery wallet.</p></details>
           <details><summary>Do my chosen destinations need to do anything?<span className="faq-plus" /></summary><p>The intended primary path is automatic when keeper automation is configured and running. A manual fallback may require a NEAR account and wallet. The interface will show the requirements for the active contract.</p></details>
           <details><summary>What does NEAR do in the system?<span className="faq-plus" /></summary><p>The NEAR contract coordinates the plan and requests threshold signatures through NEAR Chain Signatures for transactions on supported external networks.</p></details>
-          <details><summary>Is this connected to mainnet?<span className="faq-plus" /></summary><p>No. This frontend currently connects to NEAR Testnet and reads the project's testnet contract. It does not send transactions from this preview.</p></details>
+          <details><summary>Is this connected to mainnet?<span className="faq-plus" /></summary><p>No. This frontend currently connects to NEAR Testnet and reads the project&apos;s testnet contract. It does not send transactions from this preview.</p></details>
         </div>
       </section>
 
@@ -254,6 +255,10 @@ function WithdrawalPanel({ account, wallet, status, state, ownerMismatch, addres
     ethereum: pending?.owner_eth_address || '',
     bitcoin: safeBitcoinDestination(pending?.owner_btc_witness_program),
   };
+  const maturedPlanChange = isMaturedPlanChange(status, state.raw);
+  // The contract applies a matured update inside withdraw_eth/withdraw_btc.
+  // Until that transaction runs, status() still reports the old active addresses.
+  const withdrawalDestinations = maturedPlanChange ? pendingDestinations : activeDestinations;
   const [ethInput, setEthInput] = useState(pendingDestinations.ethereum || activeDestinations.ethereum);
   const [btcInput, setBtcInput] = useState(pendingDestinations.bitcoin || activeDestinations.bitcoin);
   const [busy, setBusy] = useState('');
@@ -261,7 +266,7 @@ function WithdrawalPanel({ account, wallet, status, state, ownerMismatch, addres
   const [notice, setNotice] = useState('');
   const [ethPreview, setEthPreview] = useState(null);
   const [btcPreview, setBtcPreview] = useState(null);
-  const canWithdraw = !ownerMismatch && ['Active', 'Warning', 'Grace'].includes(state.raw);
+  const canWithdraw = canOwnerWithdraw(state.raw, ownerMismatch);
   const ethRecord = [...(status.withdrawal_records || [])].reverse().find((record) => enumValue(record.chain) === 'Ethereum' && ['Pending', 'Signed'].includes(enumValue(record.status)));
   const btcRecord = [...(status.withdrawal_records || [])].reverse().find((record) => enumValue(record.chain) === 'Bitcoin' && ['Pending', 'Signed'].includes(enumValue(record.status)));
 
@@ -365,7 +370,7 @@ function WithdrawalPanel({ account, wallet, status, state, ownerMismatch, addres
     {canWithdraw && btcClaimOutstanding && !btcRecord && <div className="withdrawal-notice" role="status">A Bitcoin claim is already outstanding. Resolve it before starting a Bitcoin withdrawal.</div>}
     {error && <div className="setup-error" role="alert">{error}</div>}
     {notice && <div className="setup-notice" role="status">{notice}</div>}
-    {pending && <div className="pending-plan-card withdrawal-pending"><span className="eyebrow-label">PENDING PLAN CHANGE</span><h3>Update scheduled</h3><p>Its effective time is {effectiveAt}. Active destinations remain in use until then. Cancelling here cancels the entire pending plan update, including any recipient or keeper edits.</p><button type="button" className="withdrawal-secondary-button" onClick={cancelChange} disabled={busy !== '' || ownerMismatch}>{busy === 'cancel' ? 'Cancelling…' : 'Cancel pending update'}</button></div>}
+    {pending && <div className="pending-plan-card withdrawal-pending"><span className="eyebrow-label">PENDING PLAN CHANGE</span><h3>Update scheduled</h3><p>{maturedPlanChange ? 'The 14-day wait is complete. A withdrawal request will apply this update and use the updated destination.' : `Its effective time is ${effectiveAt}. Active destinations remain in use until then.`} Cancelling here cancels the entire pending plan update, including any recipient or keeper edits.</p><button type="button" className="withdrawal-secondary-button" onClick={cancelChange} disabled={busy !== '' || ownerMismatch}>{busy === 'cancel' ? 'Cancelling…' : 'Cancel pending update'}</button></div>}
     <div className="withdrawal-destination-card"><div className="withdrawal-card-heading"><div><span className="eyebrow-label">REGISTERED DESTINATIONS</span><h3>Where withdrawals can go</h3></div>{activeDestinations.ethereum && activeDestinations.bitcoin && <span className="read-only-badge">ACTIVE</span>}</div>
         {activeDestinations.ethereum || activeDestinations.bitcoin ? <div className="withdrawal-address-list">
         <div><span>ETHEREUM · SEPOLIA</span><code>{activeDestinations.ethereum || 'Not registered'}</code></div>
@@ -373,14 +378,17 @@ function WithdrawalPanel({ account, wallet, status, state, ownerMismatch, addres
       </div> : <p className="withdrawal-explain">No withdrawal destinations are active yet. Register both addresses below; the contract applies them after 14 days.</p>}
       {canWithdraw && <form className="withdrawal-address-form" onSubmit={registerDestinations}><label>Ethereum Sepolia address<input value={ethInput} onChange={(event) => setEthInput(event.target.value)} placeholder="0x…" autoComplete="off" /></label><label>Bitcoin Testnet address<input value={btcInput} onChange={(event) => setBtcInput(event.target.value)} placeholder="tb1q…" autoComplete="off" /></label><button type="submit" className="withdrawal-secondary-button" disabled={busy !== ''}>{busy === 'destinations' ? 'Submitting…' : pending ? 'Update pending destinations' : 'Register or update destinations'}</button></form>}
     </div>
+    {maturedPlanChange && <div className="withdrawal-notice" role="status"><strong>Destination update ready.</strong> The next withdrawal request applies the pending plan update and uses these addresses:
+      <div className="withdrawal-address-list"><div><span>ETHEREUM · SEPOLIA</span><code>{pendingDestinations.ethereum || 'Not registered'}</code></div><div><span>BITCOIN · TESTNET</span><code>{pendingDestinations.bitcoin || 'Not registered'}</code></div></div>
+    </div>}
     <div className="withdrawal-chain-grid">
-      <article className="withdrawal-chain-card"><span className="eyebrow-label">ETHEREUM · SEPOLIA</span><h3>Withdraw ETH</h3><p>Uses the full current balance minus the estimated network fee. The contract enforces its fee caps.</p>{!activeDestinations.ethereum && <p className="withdrawal-small-note">An active Ethereum destination is required.</p>}{ethRecord && <div className="withdrawal-outstanding"><strong>Outstanding transaction · {ethRecord.status}</strong><code>{ethRecord.amount ? formatWithdrawalAmount(ethRecord) : 'Waiting for signature'}</code></div>}
-        {canWithdraw && !ethRecord && !ethActionOutstanding && !ethPreview && <button type="button" className="button-primary" onClick={previewEth} disabled={busy !== '' || !activeDestinations.ethereum || !addresses?.ethereum?.address}>{busy === 'preview-eth' ? 'Calculating…' : 'Calculate ETH withdrawal'}</button>}
+      <article className="withdrawal-chain-card"><span className="eyebrow-label">ETHEREUM · SEPOLIA</span><h3>Withdraw ETH</h3><p>Uses the full current balance minus the estimated network fee. The contract enforces its fee caps.</p>{!withdrawalDestinations.ethereum && <p className="withdrawal-small-note">An active Ethereum destination is required.</p>}{ethRecord && <div className="withdrawal-outstanding"><strong>Outstanding transaction · {ethRecord.status}</strong><code>{ethRecord.amount ? formatWithdrawalAmount(ethRecord) : 'Waiting for signature'}</code></div>}
+        {!ethRecord && !ethPreview && <button type="button" className="withdrawal-action-button" onClick={previewEth} disabled={busy !== '' || !canWithdraw || ethActionOutstanding || !withdrawalDestinations.ethereum || !addresses?.ethereum?.address}>{busy === 'preview-eth' ? 'Calculating…' : 'Withdraw ETH'}</button>}
         {ethPreview && !ethRecord && <div className="withdrawal-preview"><p>Estimated fee <strong>{formatDepositBalance(ethPreview.estimatedFee, 'ETH', 18)}</strong></p><p>Amount to receive <strong>{formatDepositBalance(ethPreview.amount, 'ETH', 18)}</strong></p><button type="button" className="button-primary" onClick={startEth} disabled={busy !== ''}>{busy === 'eth' ? 'Requesting signature…' : 'Confirm and request signature'}</button><button type="button" className="withdrawal-text-button" onClick={() => setEthPreview(null)} disabled={busy !== ''}>Cancel preview</button></div>}
         {canWithdraw && ethReady && <button type="button" className="button-primary" onClick={() => broadcast(ethRecord)} disabled={busy !== ''}>{busy === 'broadcast-Ethereum' ? 'Broadcasting…' : 'Broadcast signed ETH withdrawal'}</button>}
       </article>
-      <article className="withdrawal-chain-card"><span className="eyebrow-label">BITCOIN · TESTNET</span><h3>Withdraw BTC</h3><p>Sweeps one confirmed UTXO to your active registered Bitcoin address. The contract enforces its fee caps.</p>{!activeDestinations.bitcoin && <p className="withdrawal-small-note">An active Bitcoin destination is required.</p>}{btcRecord && <div className="withdrawal-outstanding"><strong>Outstanding transaction · {btcRecord.status}</strong><code>{btcRecord.amount ? formatWithdrawalAmount(btcRecord) : 'Waiting for signature'}</code></div>}
-        {canWithdraw && !btcRecord && !btcClaimOutstanding && !btcPreview && <button type="button" className="button-primary" onClick={previewBtc} disabled={busy !== '' || !activeDestinations.bitcoin || !addresses?.bitcoin?.address}>{busy === 'preview-btc' ? 'Calculating…' : 'Calculate BTC withdrawal'}</button>}
+      <article className="withdrawal-chain-card"><span className="eyebrow-label">BITCOIN · TESTNET</span><h3>Withdraw BTC</h3><p>Sweeps one confirmed UTXO to your active registered Bitcoin address. The contract enforces its fee caps.</p>{!withdrawalDestinations.bitcoin && <p className="withdrawal-small-note">An active Bitcoin destination is required.</p>}{btcRecord && <div className="withdrawal-outstanding"><strong>Outstanding transaction · {btcRecord.status}</strong><code>{btcRecord.amount ? formatWithdrawalAmount(btcRecord) : 'Waiting for signature'}</code></div>}
+        {!btcRecord && !btcPreview && <button type="button" className="withdrawal-action-button" onClick={previewBtc} disabled={busy !== '' || !canWithdraw || btcClaimOutstanding || !withdrawalDestinations.bitcoin || !addresses?.bitcoin?.address}>{busy === 'preview-btc' ? 'Calculating…' : 'Withdraw BTC'}</button>}
         {btcPreview && !btcRecord && <div className="withdrawal-preview"><p>Selected UTXO <strong>{btcPreview.valueSats.toLocaleString()} sats</strong></p><p>Estimated fee <strong>{btcPreview.estimatedFee} sats at {btcPreview.feeRate} sat/vB</strong></p><p>Amount to receive <strong>{btcPreview.amount} sats</strong></p><button type="button" className="button-primary" onClick={startBtc} disabled={busy !== ''}>{busy === 'btc' ? 'Requesting signature…' : 'Confirm and request signature'}</button><button type="button" className="withdrawal-text-button" onClick={() => setBtcPreview(null)} disabled={busy !== ''}>Cancel preview</button></div>}
         {canWithdraw && btcReady && <button type="button" className="button-primary" onClick={() => broadcast(btcRecord)} disabled={busy !== ''}>{busy === 'broadcast-Bitcoin' ? 'Broadcasting…' : 'Broadcast signed BTC withdrawal'}</button>}
       </article>
@@ -395,6 +403,7 @@ function Dashboard({ account, wallet, status, vaultId, loading, checkingIn, erro
   const state = status ? displayState(status.state) : null;
   const ownerMismatch = status && status.owner_id && status.owner_id !== account;
   const canCheckIn = status && !ownerMismatch && ['Active', 'Warning', 'Grace'].includes(state.raw);
+  const canOpenWithdrawal = status && canOwnerWithdraw(state.raw, ownerMismatch);
   const destinations = status?.heirs || [];
   const completedEthSlots = destinations.filter((slot) => enumValue(slot.status) === 'Done').length;
   const distributionComplete = state?.raw === 'Claimable' && destinations.length > 0 &&
@@ -428,6 +437,12 @@ function Dashboard({ account, wallet, status, vaultId, loading, checkingIn, erro
             <div className="state-card-top"><div><span className="eyebrow-label">{distributionComplete ? 'DELIVERY STATUS' : 'PLAN STATUS'}</span><div className={`status-label status-${distributionComplete ? 'complete' : state.raw.toLowerCase()}`}><i />{visibleState}</div>{distributionComplete && <p className="distribution-status-note">All destinations are marked Delivered (reported).</p>}</div><span className="read-only-badge">LIVE ON TESTNET</span></div>
             <div className="state-card-bottom"><div><span className="dashboard-stat-label">{distributionComplete ? 'Contract phase' : 'Time to next state'}</span><strong>{distributionComplete ? 'Ready for distribution' : formatTime(status.seconds_until_claimable)}</strong></div><div><span className="dashboard-stat-label">Check-in interval</span><strong>{Number(status.heartbeat_interval_sec) / 86400} days</strong></div><div><span className="dashboard-stat-label">Grace period</span><strong>{Number(status.grace_period_sec) / 86400} days</strong></div><button className="disabled-checkin" onClick={onCheckIn} disabled={!canCheckIn || loading || checkingIn} title={canCheckIn ? 'Submit a check-in from your connected NEAR account' : 'Check-in is available before the plan becomes ready for distribution'}>{checkingIn ? 'Checking in…' : 'Check in'}</button></div>
           </section>
+          <div className="overview-withdraw-action">
+            <button type="button" className="overview-withdraw-button" onClick={() => setActiveSection('withdraw')} disabled={!canOpenWithdrawal} aria-describedby="overview-withdraw-help">
+              Withdraw assets <Arrow />
+            </button>
+            <p id="overview-withdraw-help">{ownerMismatch ? 'Only the account that owns this plan can withdraw.' : canOpenWithdrawal ? 'Available before the plan reaches Ready for distribution.' : 'Withdrawals are unavailable after the plan reaches Ready for distribution.'}</p>
+          </div>
           <DepositAddresses addresses={depositAddresses} balances={depositBalances} refreshing={refreshingBalances} onRefresh={onRefreshBalances} addressError={addressError} />
           <button className="text-link dashboard-view-cta" type="button" onClick={() => setActiveSection('plan')}>View plan and destinations <Arrow /></button>
         </>}

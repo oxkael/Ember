@@ -1,0 +1,29 @@
+name: Contract build (no deploy)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-contract:
+    name: Build contract and ABI on Linux
+    runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: stable
+    defaults:
+      run:
+        working-directory: vault
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install WebAssembly target
+        run: rustup target add wasm32-unknown-unknown --toolchain stable
+
+      - name: Install cargo-near
+        run: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/near/cargo-near/releases/download/cargo-near-v0.22.0/cargo-near-installer.sh | sh
+
+      - name: Build contract and generate ABI
+        run: cargo near build non-reproducible-wasm --locked
