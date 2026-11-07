@@ -38,8 +38,8 @@ export async function deriveVaultDepositAddresses(ownerId, contractId = VAULT_AC
   const bitcoinKey = deriveChildPublicKey(mpcRootPublicKey, validContractId, bitcoinPath);
 
   return {
-    ethereum: { address: deriveEvmAddress(ethereumKey), path: ethereumPath },
-    bitcoin: { address: deriveBitcoinTestnetAddress(bitcoinKey), path: bitcoinPath },
+    ethereum: { address: deriveEvmAddress(ethereumKey), path: ethereumPath, publicKey: Array.from(ethereumKey, (byte) => byte.toString(16).padStart(2, '0')).join('') },
+    bitcoin: { address: deriveBitcoinTestnetAddress(bitcoinKey), path: bitcoinPath, publicKey: Array.from(bitcoinKey, (byte) => byte.toString(16).padStart(2, '0')).join('') },
   };
 }
 
@@ -72,6 +72,31 @@ export async function setupVault(wallet, ownerId, heirs, heartbeatIntervalSec, g
 
 export async function pingVault(wallet, ownerId, contractId = VAULT_ACCOUNT_ID) {
   await signContractCall(wallet, ownerId, validateAccountId(contractId, 'Ember contract'), 'ping', {}, '100000000000000');
+}
+
+export async function proposeWithdrawalDestinations(wallet, ownerId, ethereumAddress, bitcoinAddress, contractId = VAULT_ACCOUNT_ID) {
+  const validContractId = validateAccountId(contractId, 'Ember contract');
+  const validOwnerId = validateAccountId(ownerId, 'connected wallet');
+  const eth = String(ethereumAddress || '').trim();
+  if (!/^0x[0-9a-fA-F]{40}$/.test(eth)) throw new Error('Enter a valid Ethereum address.');
+  const btc = bitcoinTestnetAddressToWitnessProgram(bitcoinAddress);
+  return signContractCall(wallet, validOwnerId, validContractId, 'set_withdrawal_destinations', {
+    ethereum_address: eth,
+    bitcoin_witness_program: btc,
+  }, '100000000000000');
+}
+
+export async function cancelPendingPlanChange(wallet, ownerId, contractId = VAULT_ACCOUNT_ID) {
+  return signContractCall(wallet, validateAccountId(ownerId, 'connected wallet'),
+    validateAccountId(contractId, 'Ember contract'), 'cancel_plan_change', {}, '100000000000000');
+}
+
+export async function callWithdrawalMethod(wallet, ownerId, contractId, method, args) {
+  if (!['withdraw_eth', 'withdraw_btc', 'mark_withdrawal_done'].includes(method)) {
+    throw new Error('Unsupported withdrawal contract method.');
+  }
+  return signContractCall(wallet, validateAccountId(ownerId, 'connected wallet'),
+    validateAccountId(contractId, 'Ember contract'), method, args, '300000000000000');
 }
 
 async function signContractCall(wallet, ownerId, contractId, methodName, args, gas) {

@@ -154,6 +154,54 @@ a { color: inherit; }
 .distribution-status-note { max-width: 610px; margin: 8px 0 0; color: #D5E7DF; font-size: 12px; line-height: 1.55; }
 @media (max-width: 700px) { .distribution-status-note { font-size: 10px; } }
 
+/* Readability pass for the connected dashboard and setup form. */
+.dashboard-page .eyebrow-label { font-size: 12px; }
+.dashboard-nav-center { font-size: 12px; }
+.wallet-ident { font-size: 12px; }
+.wallet-menu button { font-size: 12px; }
+.dashboard-heading p { font-size: 14px; }
+.dashboard-heading code, .account-note code { font-size: 12px; }
+.reload-button { font-size: 14px; }
+.dashboard-stat-label { font-size: 12px; }
+.read-only-badge { font-size: 10px; }
+.state-card-bottom strong { font-size: 15px; }
+.disabled-checkin { font-size: 13px; }
+.disabled-checkin span { font-size: 11px; }
+.destination-count { font-size: 13px; }
+.dashboard-destination-info .eyebrow-label { font-size: 12px; }
+.slot-status { font-size: 13px; }
+.destination-chain-addresses span { font-size: 12px; }
+.dashboard-empty p { font-size: 14px; }
+.dashboard-tech-note strong { font-size: 13px; }
+.dashboard-tech-note p span { font-size: 12px; }
+.dashboard-chain-tags i { font-size: 10px; }
+.dashboard-footer { font-size: 12px; }
+.activity-row > div:first-child span { font-size: 13px; }
+.activity-row-result .slot-status { font-size: 13px; }
+.activity-hash { font-size: 13px; }
+
+@media (max-width: 700px) {
+  .wallet-ident { font-size: 12px; }
+  .wallet-menu button { font-size: 12px; }
+  .dashboard-heading p { font-size: 13px; }
+  .dashboard-heading code, .account-note code { font-size: 11px; }
+  .dashboard-page .eyebrow-label { font-size: 11px; }
+  .pending-plan-card .eyebrow-label, .activity-panel-heading .eyebrow-label { font-size: 11px; }
+  .dashboard-stat-label { font-size: 12px; }
+  .state-card-bottom strong { font-size: 15px; }
+  .disabled-checkin { font-size: 13px; }
+  .disabled-checkin span { font-size: 11px; }
+  .destination-count { font-size: 12px; }
+  .dashboard-destination-info .eyebrow-label { font-size: 11px; }
+  .slot-status { font-size: 12px; }
+  .destination-chain-addresses span { font-size: 12px; }
+  .dashboard-tech-note strong, .dashboard-tech-note p span { font-size: 12px; }
+  .dashboard-chain-tags i { font-size: 10px; }
+  .dashboard-footer { font-size: 12px; }
+  .activity-row > div:first-child span, .activity-row-result .slot-status, .activity-hash { font-size: 12px; }
+  .distribution-status-note { font-size: 12px; }
+}
+
 .setup-panel { margin: 34px 0 42px; padding: clamp(22px, 4vw, 36px); border: 1px solid #CAD8D1; border-radius: 14px; background: #FFFFFF; box-shadow: 0 12px 34px rgba(13, 54, 47, .055); }
 .setup-panel-heading, .setup-destinations-heading, .setup-submit-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
 .setup-panel-heading h2 { max-width: 650px; margin: 7px 0 0; color: #083D3B; font: 500 clamp(27px, 4vw, 38px)/1.08 var(--display); letter-spacing: -.02em; }
@@ -195,4 +243,97 @@ a { color: inherit; }
   .setup-share-input { max-width: none; }
   .setup-share-total { align-self: flex-start; }
   .setup-submit-row .button-primary { width: 100%; justify-content: center; }
+}
+
+.setup-destinations-heading p { font-size: 14px; }
+.setup-destinations-heading code { font-size: 13px; }
+.setup-share-total { font-size: 13px; }
+.setup-destination-card legend { font-size: 12px; }
+.setup-destination-card label, .setup-settings-grid label, .setup-keeper-field { font-size: 14px; }
+.setup-destination-card input, .setup-settings-grid input, .setup-keeper-field input { min-height: 46px; font-size: 14px; }
+.remove-destination { font-size: 13px; }
+.add-destination-button { font-size: 14px; }
+.setup-settings-grid label > span, .setup-keeper-field > span { font-size: 12px; }
+.setup-settings-grid small, .setup-keeper-field small { font-size: 13px; }
+.setup-config-note, .setup-error, .setup-notice { font-size: 14px; }
+.setup-submit-row p { font-size: 13px; }
+
+.deposit-addresses-actions { display: flex; align-items: center; gap: 10px; }
+.refresh-balances-button { min-height: 40px; padding: 0 12px; border: 1px solid #AFC8BF; border-radius: 6px; color: var(--deep); background: #FFFFFF; font-size: 13px; font-weight: 700; cursor: pointer; }
+.refresh-balances-button:hover:not(:disabled) { background: #E6F4F1; }
+.refresh-balances-button:disabled { opacity: .65; cursor: wait; }
+.deposit-balance { display: grid; gap: 3px; margin-top: 7px; padding-top: 11px; border-top: 1px solid #E3EBE6; }
+.deposit-balance-value { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.deposit-balance-value span { color: #53615D; font-size: 13px; }
+.deposit-balance-value strong { color: #173F3A; font-size: 16px; font-weight: 700; text-align: right; }
+.deposit-balance small { color: #59635F; font-size: 12px; }
+.deposit-balance .deposit-balance-error { color: #84241C; }
+.deposit-balance-footnote { margin: 12px 0 0; color: #59635F; font-size: 12px; line-height: 1.5; }
+@media (max-width: 680px) {
+  .deposit-addresses-actions { align-items: flex-start; flex-wrap: wrap; }
+  .refresh-balances-button { min-height: 42px; font-size: 14px; }
+  .deposit-balance-value span, .deposit-balance small, .deposit-balance-footnote { font-size: 12px; }
+  .deposit-balance-value strong { font-size: 16px; }
+}
+
+.withdrawal-view { display: grid; gap: 18px; margin: 24px 0 40px; }
+.withdrawal-intro { padding: 24px 27px; border: 1px solid #B8CEC7; border-radius: 13px; background: #F1F8F5; }
+.withdrawal-intro h2 { margin: 7px 0 7px; color: #083D3B; font: 500 clamp(25px, 3vw, 34px)/1.13 var(--display); }
+.withdrawal-intro p, .withdrawal-explain { max-width: 760px; margin: 0; color: #4E5B57; font-size: 15px; line-height: 1.65; }
+.withdrawal-notice { padding: 14px 16px; border: 1px solid #B8CEC7; border-radius: 7px; color: #174D45; background: #E6F4F1; font-size: 14px; }
+.withdrawal-pending { margin: 0; }
+.withdrawal-pending h3 { margin: 5px 0; color: #173F3A; font: 600 22px var(--display); }
+.withdrawal-pending p { color: #505B61; font-size: 14px; line-height: 1.6; }
+.withdrawal-destination-card, .withdrawal-chain-card { min-width: 0; padding: 22px; border: 1px solid #D3DED9; border-radius: 10px; background: #FFFFFF; }
+.withdrawal-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.withdrawal-card-heading h3, .withdrawal-chain-card h3 { margin: 5px 0 0; color: #173F3A; font: 600 22px var(--display); }
+.withdrawal-address-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 17px; }
+.withdrawal-address-list > div { display: grid; gap: 8px; min-width: 0; padding: 14px; border: 1px solid #E0E8E4; border-radius: 7px; background: #FBFDFC; }
+.withdrawal-address-list span, .withdrawal-chain-card > .eyebrow-label { color: #0A625D; font-size: 12px; font-weight: 700; letter-spacing: .07em; }
+.withdrawal-address-list code, .withdrawal-outstanding code { overflow-wrap: anywhere; color: #1F2430; font-size: 14px; line-height: 1.6; }
+.withdrawal-explain { margin-top: 15px; }
+.withdrawal-address-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; margin-top: 18px; padding-top: 18px; border-top: 1px solid #E1E8E4; }
+.withdrawal-address-form label { display: grid; gap: 7px; color: #253A35; font-size: 14px; font-weight: 700; }
+.withdrawal-address-form input { min-width: 0; min-height: 46px; padding: 9px 11px; border: 1px solid #7A8190; border-radius: 5px; color: #1F2430; background: white; font: 14px var(--body); }
+.withdrawal-secondary-button { min-height: 42px; align-self: end; justify-self: start; padding: 0 13px; border: 1px solid #9CBDB1; border-radius: 6px; color: #083D3B; background: white; font-size: 14px; font-weight: 700; cursor: pointer; }
+.withdrawal-secondary-button:hover:not(:disabled) { background: #E6F4F1; }
+.withdrawal-secondary-button:disabled { opacity: .55; cursor: not-allowed; }
+.withdrawal-chain-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.withdrawal-chain-card { display: flex; flex-direction: column; align-items: flex-start; gap: 9px; }
+.withdrawal-chain-card p { margin: 0; color: #505B61; font-size: 14px; line-height: 1.6; }
+.withdrawal-chain-card .button-primary { min-height: 44px; margin-top: 7px; font-size: 14px; }
+.withdrawal-small-note, .withdrawal-footnote { color: #5B6270 !important; font-size: 13px !important; line-height: 1.55; }
+.withdrawal-outstanding { display: grid; gap: 3px; width: 100%; padding: 11px; border: 1px solid #C8DAD2; border-radius: 6px; background: #F3F8F5; }
+.withdrawal-outstanding strong { color: #174D45; font-size: 13px; }
+.withdrawal-preview { display: grid; gap: 4px; width: 100%; margin-top: 6px; padding: 12px; border: 1px solid #C8DAD2; border-radius: 7px; background: #F5F9F7; }
+.withdrawal-preview p { display: flex; justify-content: space-between; gap: 8px; }
+.withdrawal-preview strong { color: #173F3A; text-align: right; }
+.withdrawal-preview .button-primary { justify-self: start; }
+.withdrawal-text-button { justify-self: start; padding: 5px 0; border: 0; color: #315D53; background: transparent; font-size: 13px; font-weight: 700; cursor: pointer; }
+.withdrawal-footnote { margin: 0; }
+.reported-confirmation { display: grid; gap: 8px; width: 100%; margin-top: 4px; padding: 12px; border: 1px solid #D6E1DC; border-radius: 7px; background: #FBFDFC; }
+.reported-confirmation-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #315D53; font-size: 13px; font-weight: 700; }
+.reported-confirmation-heading button { padding: 5px 8px; border: 1px solid #B8CEC7; border-radius: 4px; color: #174D45; background: white; font-size: 12px; font-weight: 700; cursor: pointer; }
+.reported-confirmation-heading button:disabled { opacity: .6; cursor: wait; }
+.reported-source-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-top: 7px; border-top: 1px solid #E2E9E5; }
+.reported-source-row > span { display: grid; gap: 2px; }
+.reported-source-row strong { color: #253A35; font-size: 12px; }
+.reported-source-row small { color: #5B6270; font-size: 12px; line-height: 1.45; text-align: right; }
+.reported-source-row > span small { text-align: left; }
+.reported-confirmation-error { margin: 0; color: #B42318; font-size: 12px; }
+.reported-confirmation-note { margin: 2px 0 0; color: #59635F; font-size: 11px; line-height: 1.5; }
+@media (max-width: 680px) {
+  .withdrawal-view { gap: 13px; margin-top: 17px; }
+  .withdrawal-intro { padding: 19px 16px; }
+  .withdrawal-intro p, .withdrawal-explain { font-size: 14px; }
+  .withdrawal-destination-card, .withdrawal-chain-card { padding: 17px 14px; }
+  .withdrawal-address-list, .withdrawal-address-form, .withdrawal-chain-grid { grid-template-columns: 1fr; }
+  .withdrawal-address-form .withdrawal-secondary-button { width: 100%; }
+  .withdrawal-card-heading h3, .withdrawal-chain-card h3 { font-size: 21px; }
+  .withdrawal-chain-card .button-primary { width: 100%; }
+  .withdrawal-preview .button-primary { justify-self: stretch; justify-content: center; }
+  .withdrawal-preview p { font-size: 13px; }
+  .reported-source-row { flex-direction: column; gap: 3px; }
+  .reported-source-row small { text-align: left; }
+  .reported-confirmation-note { font-size: 11px; }
 }
