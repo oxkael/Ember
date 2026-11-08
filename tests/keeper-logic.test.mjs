@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import * as bitcoin from "bitcoinjs-lib";
 import { ethers } from "ethers";
-import { calculateBtcOutputs, enumName, hasUnfinishedClaimWork, parseMpcSignature, selectOwnerIds } from "../scripts/keeper-logic.mjs";
+import { calculateBtcOutputs, enumName, hasUnfinishedClaimWork, hasUnfinishedEthWork, parseMpcSignature, selectOwnerIds } from "../scripts/keeper-logic.mjs";
 
 const recipients = [
   { heir: { bitcoin_witness_program: "11".repeat(20), share_basis_points: 7000 } },
@@ -50,6 +50,11 @@ test("keeper skips records whose ETH and BTC claim slots are all Done", () => {
     heirs: [{ status: "Done" }],
     btc_slot: { status: { Signed: {} } },
   }), true);
+});
+
+test("keeper detects remaining ETH recipients after completing an earlier slot", () => {
+  assert.equal(hasUnfinishedEthWork({ heirs: [{ status: "Done" }, { status: "Unsent" }] }), true);
+  assert.equal(hasUnfinishedEthWork({ heirs: [{ status: "Done" }, { status: { Done: {} } }] }), false);
 });
 
 test("manual keeper selection targets only the requested registered owner", () => {

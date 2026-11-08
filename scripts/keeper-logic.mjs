@@ -8,6 +8,10 @@ export function hasUnfinishedClaimWork(status) {
   return ethUnfinished || btcUnfinished;
 }
 
+export function hasUnfinishedEthWork(status) {
+  return Array.isArray(status?.heirs) && status.heirs.some((slot) => enumName(slot.status) !== "Done");
+}
+
 export function selectOwnerIds(owners, requestedOwnerId = "") {
   const ownerId = requestedOwnerId.trim();
   if (!ownerId) return owners;

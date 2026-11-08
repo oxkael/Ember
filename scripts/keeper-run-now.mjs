@@ -4,7 +4,7 @@ import * as bitcoin from "bitcoinjs-lib";
 import { deriveBitcoinTestnetAddress, deriveChildPublicKey, deriveEvmAddress } from "../frontend/src/chainSignatures.js";
 import { ripemd160 } from "@noble/hashes/legacy";
 import { sha256 } from "@noble/hashes/sha2";
-import { calculateBtcOutputs, enumName, hasUnfinishedClaimWork, parseMpcSignature, selectOwnerIds } from "./keeper-logic.mjs";
+import { calculateBtcOutputs, enumName, hasUnfinishedClaimWork, hasUnfinishedEthWork, parseMpcSignature, selectOwnerIds } from "./keeper-logic.mjs";
 
 const contractId = process.env.EMBER_CONTRACT_ID?.trim();
 const keeperId = process.env.EMBER_KEEPER_ACCOUNT_ID?.trim();
@@ -321,8 +321,16 @@ for (const ownerId of selectedOwners) {
   }
   const addresses = await deriveAddresses(status);
   console.log(`${ownerId}: Claimable`);
-  const ethResult = await runEth(ownerId, status, addresses);
-  console.log(`  ETH: ${ethResult}`);
+  let ethStatus = status;
+  const ethResults = [];
+  for (let attempt = 0; attempt < Math.max(1, status.heirs.length); attempt += 1) {
+    const ethResult = await runEth(ownerId, ethStatus, addresses);
+    ethResults.push(ethResult);
+    if (!ethResult.startsWith("ETH delivered:")) break;
+    ethStatus = await view("status", { owner_id: ownerId });
+    if (!hasUnfinishedEthWork(ethStatus)) break;
+  }
+  console.log(`  ETH: ${ethResults.join(" | ")}`);
   // Re-read after ETH because its claim consumes the contract's one outstanding action per chain.
   const refreshed = await view("status", { owner_id: ownerId });
   const btcResult = await runBtc(ownerId, refreshed, addresses);
