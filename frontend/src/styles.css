@@ -349,3 +349,43 @@ a { color: inherit; }
   .reported-source-row small { text-align: left; }
   .reported-confirmation-note { font-size: 11px; }
 }
+
+/* Make plan destinations easy to scan and distinguish from their labels. */
+.dashboard-destination .destination-chain-addresses span { color: #334A43; font-size: 12px; }
+.dashboard-destination .destination-chain-addresses code {
+  display: block;
+  padding: 9px 10px;
+  border: 1px solid #C8DAD2;
+  border-radius: 5px;
+  color: #172F2B;
+  background: #F1F7F4;
+  font: 700 15px/1.55 var(--mono);
+}
+@media (max-width: 680px) {
+  .dashboard-destination .destination-chain-addresses span { font-size: 11px; }
+  .dashboard-destination .destination-chain-addresses code { padding: 8px 9px; font-size: 13px; }
+}
+
+/* Reflect whether check-in is actually available. */
+.disabled-checkin { cursor: pointer; }
+.disabled-checkin:disabled { cursor: not-allowed; }
+.disabled-checkin:not(:disabled):hover { background: rgba(255,255,255,.15); }
+
+.setup-allocation-preview { display: grid; gap: 7px; padding: 13px; border: 1px solid #C8DAD2; border-radius: 6px; background: #F1F7F4; }
+.setup-allocation-label, .destination-allocation-label { color: #315D53; font-size: 10px; font-weight: 800; letter-spacing: .07em; }
+.setup-allocation-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; color: #344A43; font-size: 13px; }
+.setup-allocation-row strong { color: #172F2B; font-size: 15px; font-variant-numeric: tabular-nums; }
+.setup-allocation-note, .dashboard-allocation-note { margin: 12px 0; color: #505B61; font-size: 12px; line-height: 1.55; }
+.destination-allocation-preview { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin-top: 12px; padding: 10px 12px; border: 1px solid #C8DAD2; border-radius: 5px; background: #F1F7F4; }
+.destination-allocation-label { flex-basis: 100%; }
+.destination-allocation-preview strong { color: #172F2B; font: 700 14px/1.4 var(--mono); }
+.setup-keeper-summary { display: grid; gap: 8px; max-width: 690px; margin: 0 0 18px; padding: 14px 15px; border: 1px solid #C8DAD2; border-radius: 7px; background: #F3F8F5; }
+.setup-keeper-summary-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #173F3A; font-size: 14px; }
+.setup-keeper-summary code { width: fit-content; color: #172F2B; font: 700 14px/1.5 var(--mono); overflow-wrap: anywhere; }
+.setup-keeper-summary small { color: #505B61; font-size: 12px; line-height: 1.5; }
+@media (max-width: 680px) {
+  .setup-keeper-summary-heading { align-items: flex-start; flex-direction: column; }
+  .setup-allocation-row { font-size: 13px; }
+  .setup-allocation-row strong, .destination-allocation-preview strong { font-size: 13px; }
+  .setup-allocation-note, .dashboard-allocation-note { font-size: 12px; }
+}
