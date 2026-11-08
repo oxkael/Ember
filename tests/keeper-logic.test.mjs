@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import * as bitcoin from "bitcoinjs-lib";
 import { ethers } from "ethers";
-import { calculateBtcOutputs, enumName, parseMpcSignature } from "../scripts/keeper-logic.mjs";
+import { calculateBtcOutputs, enumName, hasUnfinishedClaimWork, parseMpcSignature, selectOwnerIds } from "../scripts/keeper-logic.mjs";
 
 const recipients = [
   { heir: { bitcoin_witness_program: "11".repeat(20), share_basis_points: 7000 } },
@@ -35,6 +35,28 @@ test("enumName handles NEAR JSON enum serialization", () => {
   assert.equal(enumName("Signed"), "Signed");
   assert.equal(enumName({ Bitcoin: {} }), "Bitcoin");
   assert.equal(enumName(null), "Unknown");
+});
+
+test("keeper skips records whose ETH and BTC claim slots are all Done", () => {
+  assert.equal(hasUnfinishedClaimWork({
+    heirs: [{ status: "Done" }, { status: { Done: {} } }],
+    btc_slot: { status: "Done" },
+  }), false);
+  assert.equal(hasUnfinishedClaimWork({
+    heirs: [{ status: "Done" }, { status: "Unsent" }],
+    btc_slot: { status: "Done" },
+  }), true);
+  assert.equal(hasUnfinishedClaimWork({
+    heirs: [{ status: "Done" }],
+    btc_slot: { status: { Signed: {} } },
+  }), true);
+});
+
+test("manual keeper selection targets only the requested registered owner", () => {
+  const owners = ["3mberdev.testnet", "3mbertest1.testnet"];
+  assert.deepEqual(selectOwnerIds(owners), owners);
+  assert.deepEqual(selectOwnerIds(owners, " 3mbertest1.testnet "), ["3mbertest1.testnet"]);
+  assert.throws(() => selectOwnerIds(owners, "unknown.testnet"), /not present in the contract owner registry/);
 });
 
 test("Bitcoin transaction builder reproduces the contract BIP-143 sighash vector", () => {

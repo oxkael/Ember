@@ -2,6 +2,11 @@ name: Keeper Run Now (testnet)
 
 on:
   workflow_dispatch:
+    inputs:
+      owner_id:
+        description: "Optional owner account to process (for example, 3mbertest1.testnet). Leave blank to scan eligible records."
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -21,6 +26,7 @@ jobs:
       EMBER_KEEPER_PRIVATE_KEY: ${{ secrets.EMBER_KEEPER_PRIVATE_KEY }}
       EMBER_KEEPER_EXECUTE: "1"
       EMBER_KEEPER_MAX_RECORDS: "1"
+      EMBER_KEEPER_OWNER_ID: ${{ inputs.owner_id }}
       NEAR_RPC_URL: https://rpc.testnet.near.org
       EMBER_SEPOLIA_RPC_URL: https://ethereum-sepolia-rpc.publicnode.com
       EMBER_BTC_TESTNET_API: https://mempool.space/testnet/api

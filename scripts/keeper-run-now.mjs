@@ -4,7 +4,7 @@ import * as bitcoin from "bitcoinjs-lib";
 import { deriveBitcoinTestnetAddress, deriveChildPublicKey, deriveEvmAddress } from "../frontend/src/chainSignatures.js";
 import { ripemd160 } from "@noble/hashes/legacy";
 import { sha256 } from "@noble/hashes/sha2";
-import { calculateBtcOutputs, enumName, parseMpcSignature } from "./keeper-logic.mjs";
+import { calculateBtcOutputs, enumName, hasUnfinishedClaimWork, parseMpcSignature, selectOwnerIds } from "./keeper-logic.mjs";
 
 const contractId = process.env.EMBER_CONTRACT_ID?.trim();
 const keeperId = process.env.EMBER_KEEPER_ACCOUNT_ID?.trim();
@@ -13,6 +13,7 @@ const evmRpcUrl = process.env.EMBER_SEPOLIA_RPC_URL?.trim() || "https://ethereum
 const btcApi = process.env.EMBER_BTC_TESTNET_API?.trim() || "https://mempool.space/testnet/api";
 const execute = process.env.EMBER_KEEPER_EXECUTE === "1";
 const maxRecordsPerRun = Number(process.env.EMBER_KEEPER_MAX_RECORDS || "1");
+const requestedOwnerId = process.env.EMBER_KEEPER_OWNER_ID?.trim() || "";
 const ETH_CHAIN_ID = 11155111;
 const BTC_MAX_FEE_RATE = 200n;
 const ETH_ABSOLUTE_FEE_CAP = 2_000_000_000_000_000n;
@@ -290,17 +291,34 @@ if (execute) {
 }
 
 const owners = await readRegistry();
+const selectedOwners = selectOwnerIds(owners, requestedOwnerId);
 console.log(`Contract: ${contractId}`);
 console.log(`Keeper: ${keeperId}`);
 console.log(`Mode: ${execute ? "EXECUTE" : "DRY RUN"}`);
 console.log(`Owner records found: ${owners.length}`);
+console.log(`Owner selection: ${requestedOwnerId || "automatic scan"}`);
 let processed = 0;
-for (const ownerId of owners) {
+for (const ownerId of selectedOwners) {
   if (processed >= maxRecordsPerRun) break;
   const status = await view("status", { owner_id: ownerId });
-  if (!status || !Array.isArray(status.keepers) || !status.keepers.includes(keeperId)) continue;
+  if (!status) {
+    if (requestedOwnerId) throw new Error(`No status was returned for requested owner ${ownerId}.`);
+    continue;
+  }
+  if (!Array.isArray(status.keepers) || !status.keepers.includes(keeperId)) {
+    if (requestedOwnerId) throw new Error(`Keeper ${keeperId} is not authorized for requested owner ${ownerId}.`);
+    continue;
+  }
   const state = stateName(status.state);
-  if (state !== "Claimable") continue;
+  if (state !== "Claimable") {
+    if (requestedOwnerId) throw new Error(`Requested owner ${ownerId} is ${state}, not Claimable.`);
+    continue;
+  }
+  if (!hasUnfinishedClaimWork(status)) {
+    console.log(`${ownerId}: all ETH and BTC claim slots are already Done; skipped`);
+    if (requestedOwnerId) throw new Error(`Requested owner ${ownerId} has no unfinished claim slots.`);
+    continue;
+  }
   const addresses = await deriveAddresses(status);
   console.log(`${ownerId}: Claimable`);
   const ethResult = await runEth(ownerId, status, addresses);
@@ -312,3 +330,4 @@ for (const ownerId of owners) {
   processed += 1;
 }
 console.log(`Eligible records processed: ${processed}`);
+if (processed === 0 && !requestedOwnerId) console.log("No unfinished Claimable records were found for this keeper.");
