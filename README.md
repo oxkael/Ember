@@ -75,5 +75,9 @@ Faucet links
 1. After the check-in and grace periods expire, Ember’s scheduled keeper detects that the plan is ready and starts the transfers automatically.
 2. Allow time for the keeper’s next scheduled check and for the Bitcoin and Ethereum Testnet transactions to confirm. Then check Ember’s activity and the receiving wallets to confirm the transfers arrived.
 
+## Sources
+- Lost-Bitcoin estimates and method: https://blockonomi.com/what-happens-to-crypto-when-you-die-key-statistics-and-facts/
+- NEAR Chain Signatures: https://docs.near.org/chain-abstraction/chain-signatures
+
 ## Other Near Hackathon Submission
 https://github.com/oxkael/Ajocircle
