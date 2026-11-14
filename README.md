@@ -41,11 +41,6 @@ The contract also supports owner withdrawals to registered addresses before `Cla
 
 NEAR Chain Signatures support ECDSA-based chains including Bitcoin, Ethereum, Cosmos chains, Dogecoin, and XRP Ledger. NEAR has also announced EdDSA signing for networks including Solana, TON, Stellar, Sui, and Aptos. These are candidates for future Ember support, subject to confirming each network's signing and transaction workflow and testing it. See the NEAR Chain Signatures launch and NEAR EdDSA announcement sources.
 
-## Try the judge preview
-
-Choose **Judge demo** on the landing page to open a wallet-free, read-only walkthrough. It uses sample values and addresses only; it does not read a real contract, connect a wallet, or send transactions.
-
-To create or manage a live testnet plan, connect a NEAR Testnet wallet. The wallet is required to authorize setup, check-ins, withdrawals, and other contract actions. Do not enter a seed phrase or private key into Ember.
 
 ## Test workflow
 
@@ -89,45 +84,11 @@ After the check-in and grace periods expire, the scheduled keeper detects eligib
 
 The scheduled workflow runs every five minutes from the repository's **default branch**. GitHub may delay scheduled jobs, so this is a polling target, not an exact execution time. A manual run is also available in GitHub Actions. Public RPC and indexer availability can delay balance reads, signing, broadcast, or confirmation.
 
-## Automatic keeper configuration
-
-Configure these GitHub repository variables:
-
-- `EMBER_CONTRACT_ID` — the deployed shared contract account ID.
-- `EMBER_KEEPER_ACCOUNT_ID` — the dedicated shared keeper NEAR account ID.
-
-Configure this GitHub repository secret:
-
-- `EMBER_KEEPER_PRIVATE_KEY` — the keeper's NEAR function-call key, scoped to the Ember contract and only the keeper methods. Never use an owner or contract-account key here.
 
 Each owner's plan must explicitly authorize that keeper account. The keeper account needs NEAR for its own transaction fees. The contract pays the MPC signing deposit. For setup and operational details, see [docs/KEEPER_RUNBOOK.md](docs/KEEPER_RUNBOOK.md).
 
-## Develop and verify
 
-Install Node.js 22 or later and Rust. From the repository root:
 
-```bash
-npm ci
-npm test
-npm run build
-```
-
-Run contract tests from `vault/`:
-
-```bash
-cargo test
-```
-
-The Linux **Contract build (no deploy)** GitHub Actions workflow runs `cargo near build` and ABI generation. Building does not deploy or migrate the live testnet contract.
-
-## Repository map
-
-- `frontend/` — React/Vite landing page, judge demo, wallet connection, dashboard, and contract adapter.
-- `vault/` — NEAR Rust contract and unit tests.
-- `scripts/keeper-run-now.mjs` — keeper scan, signing orchestration, broadcast, and reporting.
-- `scripts/keeper-logic.mjs` and `tests/` — keeper transaction logic and JavaScript tests.
-- `.github/workflows/` — testnet keeper automation and contract build workflow.
-- `docs/KEEPER_RUNBOOK.md` — keeper configuration and operating notes.
 
 ## Other NEAR Hackathon submission
 
