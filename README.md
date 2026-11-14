@@ -132,3 +132,8 @@ The Linux **Contract build (no deploy)** GitHub Actions workflow runs `cargo nea
 ## Other NEAR Hackathon submission
 
 <https://github.com/oxkael/Ajocircle>
+
+## Sources
+
+- Lost-Bitcoin estimates and methodology: [Blockonomi](https://blockonomi.com/what-happens-to-crypto-when-you-die-key-statistics-and-facts/).
+- NEAR Chain Signatures: [NEAR documentation](https://docs.near.org/chain-abstraction/chain-signatures).
