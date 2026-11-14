@@ -118,6 +118,57 @@ a { color: inherit; }
 .overview-withdraw-button:focus-visible { outline: 3px solid #82B8A7; outline-offset: 3px; }
 .overview-withdraw-button:disabled { border-color: #8A918F; color: #535C59; background: #F2F4F3; cursor: not-allowed; }
 .overview-withdraw-button svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Wallet-free, read-only judging path */
+.landing-nav-actions { display: flex; align-items: center; gap: 9px; }
+.nav-demo { min-height: 41px; padding: 0 12px; border: 1px solid #A9C1B7; border-radius: 6px; color: #174E45; background: #FFFFFF; font: 700 12px var(--body); cursor: pointer; }
+.nav-demo:hover { background: #E6F4F1; }
+.demo-link { min-height: 46px; display: inline-flex; align-items: center; gap: 7px; padding: 0 13px; border: 1px solid #A9C1B7; border-radius: 6px; color: #174E45; background: #FFFFFF; font: 700 13px var(--body); cursor: pointer; }
+.demo-link:hover { background: #E6F4F1; }
+.demo-link svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.demo-sample-banner { display: flex; flex-wrap: wrap; gap: 5px 12px; margin-bottom: 22px; padding: 13px 15px; border: 1px solid #AFCFC3; border-radius: 7px; color: #183F38; background: #E6F4F1; font-size: 13px; }
+.demo-sample-banner strong { font-weight: 750; }
+.demo-sample-banner span { color: #415B53; }
+.demo-connect-button { color: #FFFFFF !important; background: #0B4F4D !important; border-color: #0B4F4D !important; }
+.demo-columns { display: grid; grid-template-columns: 1.05fr .95fr; gap: 16px; margin-top: 17px; }
+.demo-columns .activity-panel { min-width: 0; margin: 0; }
+.demo-recipient { padding: 15px 0; border-top: 1px solid #E2E8E3; }
+.demo-recipient > div { display: flex; align-items: center; gap: 10px; }
+.demo-recipient > div strong { flex: 1; color: #243B34; font-size: 14px; }
+.demo-index { color: #61716A; font: 12px var(--mono); }
+.demo-recipient p { display: flex; justify-content: space-between; gap: 12px; margin: 11px 0 0; color: #52615C; font-size: 12px; }
+.demo-recipient code { color: #263A35; font: 12px var(--mono); }
+.demo-recipient small { display: block; margin-top: 9px; color: #68756F; font-size: 11px; }
+.demo-automation-panel ol { display: grid; gap: 17px; margin: 0; padding: 0; list-style: none; }
+.demo-automation-panel li { display: flex; align-items: flex-start; gap: 12px; }
+.demo-automation-panel li > b { width: 27px; height: 27px; display: grid; place-items: center; flex: none; border-radius: 50%; color: #174E45; background: #E6F4F1; font: 700 12px var(--mono); }
+.demo-automation-panel li > span { display: grid; gap: 4px; }
+.demo-automation-panel li strong { color: #263A35; font-size: 13px; }
+.demo-automation-panel li small { color: #586760; font-size: 12px; line-height: 1.5; }
+.demo-technology-note { display: flex; align-items: center; gap: 11px; margin-top: 20px; padding: 12px; border: 1px solid #C8DDD4; border-radius: 7px; background: #EAF5F1; }
+.demo-technology-note .near-trust-icon { width: 32px; height: 32px; display: grid; place-items: center; flex: none; border-radius: 8px; font: 700 14px var(--mono); }
+.demo-technology-note p { display: grid; gap: 4px; margin: 0; }
+.demo-technology-note strong { color: #173F39; font-size: 12px; }
+.demo-technology-note p span { color: #4D615A; font-size: 11px; }
+.demo-bottom-cta { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 18px 0 32px; padding: 18px 20px; border: 1px solid #D5E0D9; border-radius: 8px; background: #FFFFFF; }
+.demo-bottom-cta > div { display: grid; gap: 4px; }
+.demo-bottom-cta > div strong { color: #173F39; font: 600 19px var(--display); }
+.demo-bottom-cta > div span { color: #56635D; font-size: 12px; line-height: 1.5; }
+.demo-bottom-cta .button-primary { flex: none; }
+@media (max-width: 700px) {
+  .landing-nav-actions { gap: 6px; }
+  .nav-demo { min-height: 38px; padding: 0 9px; font-size: 10px; }
+  .landing-nav-actions .nav-connect { padding: 0 9px; }
+  .demo-link { width: 100%; justify-content: center; }
+  .demo-columns { grid-template-columns: 1fr; }
+  .demo-bottom-cta { align-items: stretch; flex-direction: column; }
+  .demo-bottom-cta .button-primary { justify-content: center; }
+  .demo-dashboard .dashboard-nav { padding: 0 13px; }
+  .demo-dashboard .dashboard-wordmark > span:last-child { font-size: 20px; }
+  .demo-dashboard .wallet-menu { gap: 5px; }
+  .demo-dashboard .wallet-menu button { padding: 7px; font-size: 10px; }
+  .demo-recipient p { align-items: flex-start; flex-direction: column; gap: 4px; }
+}
 .overview-withdraw-action p { margin: 0; color: #4E5B57; font-size: 13px; line-height: 1.5; }
 
 @keyframes orbit-turn { to { transform: translate(-50%,-50%) rotate(335deg); } }

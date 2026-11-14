@@ -10,7 +10,8 @@ const contractId = process.env.EMBER_CONTRACT_ID?.trim();
 const keeperId = process.env.EMBER_KEEPER_ACCOUNT_ID?.trim();
 const rpcUrl = process.env.NEAR_RPC_URL?.trim() || "https://rpc.testnet.near.org";
 const evmRpcUrl = process.env.EMBER_SEPOLIA_RPC_URL?.trim() || "https://ethereum-sepolia-rpc.publicnode.com";
-const btcApi = process.env.EMBER_BTC_TESTNET_API?.trim() || "https://mempool.space/testnet/api";
+const btcApi = (process.env.EMBER_BTC_TESTNET_API?.trim() || "https://mempool.space/testnet/api").replace(/\/+$/, "");
+const btcApiFallback = "https://blockstream.info/testnet/api";
 const execute = process.env.EMBER_KEEPER_EXECUTE === "1";
 const maxRecordsPerRun = Number(process.env.EMBER_KEEPER_MAX_RECORDS || "1");
 const requestedOwnerId = process.env.EMBER_KEEPER_OWNER_ID?.trim() || "";
@@ -164,11 +165,14 @@ async function runEth(ownerId, status, addresses) {
     try {
       await evmProvider.broadcastTransaction(signed.serialized);
     } catch (error) {
-      // A prior run may already have broadcast this exact signed transaction.
+      // A prior scheduled run may already have submitted this same signed transaction.
       receipt = await evmProvider.getTransactionReceipt(signed.hash);
-      if (!receipt) throw error;
+      const knownTransaction = await evmProvider.getTransaction(signed.hash);
+      const message = String(error?.shortMessage || error?.message || error);
+      const alreadyKnown = /already known|known transaction|already in (?:the )?(?:tx)?pool/i.test(message);
+      if (!receipt && !knownTransaction && !alreadyKnown) throw error;
     }
-    if (!receipt) receipt = await evmProvider.waitForTransaction(signed.hash, 1, 600_000);
+    if (!receipt) return `ETH broadcast/pending: ${signed.hash}; confirmation will be checked on the next run`;
   }
   if (!receipt || receipt.status !== 1) throw new Error(`ETH transaction ${signed.hash} did not confirm successfully.`);
   await keeperAccount.callFunction({ contractId, methodName: "mark_done", args: { owner_id: ownerId, heir_index: slotIndex, tx_hash: signed.hash }, gas: 100_000_000_000_000n, attachedDeposit: 0n });
@@ -176,15 +180,44 @@ async function runEth(ownerId, status, addresses) {
 }
 
 async function fetchJson(url, options) {
-  const response = await fetch(url, options);
-  const text = await response.text();
-  if (!response.ok) throw new Error(`Request failed (${response.status}): ${text.slice(0, 300)}`);
-  try { return text ? JSON.parse(text) : null; } catch { return text; }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    const text = await response.text();
+    if (!response.ok) throw new Error(`Request failed (${response.status}): ${text.slice(0, 300)}`);
+    try { return text ? JSON.parse(text) : null; } catch { return text; }
+  } catch (error) {
+    if (error?.name === "AbortError") throw new Error(`Request timed out after 15 seconds: ${url}`);
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function fetchBtcJson(path, options) {
+  const bases = [...new Set([btcApi, btcApiFallback])];
+  const errors = [];
+  for (const base of bases) {
+    try {
+      return await fetchJson(`${base}${path}`, options);
+    } catch (error) {
+      errors.push(`${base}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  throw new Error(`Bitcoin Testnet indexers failed: ${errors.join("; ")}`);
 }
 
 async function getBtcFeeRate() {
-  const fees = await fetchJson(`${btcApi}/v1/fees/recommended`);
-  const candidates = [fees.fastestFee, fees.halfHourFee, fees.economyFee]
+  let fees;
+  try {
+    fees = await fetchJson(`${btcApi}/v1/fees/recommended`);
+  } catch {
+    const estimates = await fetchJson(`${btcApiFallback}/fee-estimates`);
+    const oneBlockRate = Number(estimates?.["1"]);
+    fees = { fastestFee: oneBlockRate, halfHourFee: Number(estimates?.["3"]), economyFee: Number(estimates?.["6"]) };
+  }
+  const candidates = [fees?.fastestFee, fees?.halfHourFee, fees?.economyFee]
     .filter((value) => Number.isFinite(Number(value)) && Number(value) > 0)
     .map((value) => BigInt(Math.ceil(Number(value))))
     .filter((value) => value <= BTC_MAX_FEE_RATE);
@@ -214,7 +247,7 @@ async function runBtc(ownerId, status, addresses) {
   }
   if (status.btc_slot.status === "Pending" || status.btc_slot.status === "Unsent") {
     const isRetry = status.btc_slot.status === "Pending";
-    const utxos = await fetchJson(`${btcApi}/address/${addresses.btc}/utxo`);
+    const utxos = await fetchBtcJson(`/address/${addresses.btc}/utxo`);
     let candidate;
     let feeRate;
     if (isRetry) {
@@ -245,7 +278,7 @@ async function runBtc(ownerId, status, addresses) {
   const txid = slot.last_txid;
   const vout = Number(slot.last_vout);
   if (!txid || !Number.isInteger(vout)) throw new Error("Signed BTC slot is missing its recorded UTXO.");
-  const txInfo = await fetchJson(`${btcApi}/tx/${txid}`);
+  const txInfo = await fetchBtcJson(`/tx/${txid}`);
   const value = BigInt(txInfo.vout[vout].value);
   const feeRate = BigInt(slot.last_fee_rate_sat_vb);
   const prepared = await signBtcTx(ownerId, status, addresses, { txid, vout, value: value.toString() }, feeRate);
@@ -260,10 +293,10 @@ async function runBtc(ownerId, status, addresses) {
   if (pubkeyHash.toLowerCase() !== status.btc_sender_pubkey_hash.toLowerCase()) throw new Error("Recovered BTC signer does not match the vault witness program.");
   prepared.tx.setWitness(0, [bitcoin.script.signature.encode(compact, bitcoin.Transaction.SIGHASH_ALL), compressedPubkey]);
   const expectedTxid = prepared.tx.getId();
-  const spend = await fetchJson(`${btcApi}/tx/${txid}/outspend/${vout}`);
+  const spend = await fetchBtcJson(`/tx/${txid}/outspend/${vout}`);
   if (spend.spent && spend.txid !== expectedTxid) return `BTC input ${txid}:${vout} was spent by a different transaction; status reconciliation needed`;
   if (spend.spent && spend.txid === expectedTxid) {
-    const known = await fetchJson(`${btcApi}/tx/${expectedTxid}/status`);
+    const known = await fetchBtcJson(`/tx/${expectedTxid}/status`);
     if (!known.confirmed) return `BTC transaction ${expectedTxid} is already in the mempool; waiting for confirmation`;
     if (!execute) return `BTC ready: would report confirmed transaction ${expectedTxid}`;
     await keeperAccount.callFunction({ contractId, methodName: "mark_btc_done", args: { owner_id: ownerId, tx_hash: expectedTxid }, gas: 100_000_000_000_000n, attachedDeposit: 0n });
@@ -271,14 +304,9 @@ async function runBtc(ownerId, status, addresses) {
   }
   if (!execute) return `BTC ready: would broadcast signed transaction spending ${txid}:${vout}`;
   const txHex = prepared.tx.toHex();
-  const broadcastTxid = await fetchJson(`${btcApi}/tx`, { method: "POST", headers: { "content-type": "text/plain" }, body: txHex });
-  let confirmed = false;
-  for (let attempt = 0; attempt < 60; attempt += 1) {
-    const result = await fetchJson(`${btcApi}/tx/${broadcastTxid}/status`);
-    if (result.confirmed) { confirmed = true; break; }
-    await new Promise((resolve) => setTimeout(resolve, 10_000));
-  }
-  if (!confirmed) throw new Error(`BTC transaction ${broadcastTxid} was broadcast but is not confirmed yet; it was not marked Done.`);
+  const broadcastTxid = await fetchBtcJson("/tx", { method: "POST", headers: { "content-type": "text/plain" }, body: txHex });
+  const result = await fetchBtcJson(`/tx/${broadcastTxid}/status`);
+  if (!result.confirmed) return `BTC broadcast/pending: ${broadcastTxid}; confirmation will be checked on the next run`;
   await keeperAccount.callFunction({ contractId, methodName: "mark_btc_done", args: { owner_id: ownerId, tx_hash: broadcastTxid }, gas: 100_000_000_000_000n, attachedDeposit: 0n });
   return `BTC delivered: ${broadcastTxid}`;
 }
@@ -298,8 +326,10 @@ console.log(`Mode: ${execute ? "EXECUTE" : "DRY RUN"}`);
 console.log(`Owner records found: ${owners.length}`);
 console.log(`Owner selection: ${requestedOwnerId || "automatic scan"}`);
 let processed = 0;
+const failures = [];
 for (const ownerId of selectedOwners) {
   if (processed >= maxRecordsPerRun) break;
+  try {
   const status = await view("status", { owner_id: ownerId });
   if (!status) {
     if (requestedOwnerId) throw new Error(`No status was returned for requested owner ${ownerId}.`);
@@ -324,18 +354,41 @@ for (const ownerId of selectedOwners) {
   let ethStatus = status;
   const ethResults = [];
   for (let attempt = 0; attempt < Math.max(1, status.heirs.length); attempt += 1) {
-    const ethResult = await runEth(ownerId, ethStatus, addresses);
-    ethResults.push(ethResult);
-    if (!ethResult.startsWith("ETH delivered:")) break;
-    ethStatus = await view("status", { owner_id: ownerId });
-    if (!hasUnfinishedEthWork(ethStatus)) break;
+    try {
+      const ethResult = await runEth(ownerId, ethStatus, addresses);
+      ethResults.push(ethResult);
+      if (!ethResult.startsWith("ETH delivered:")) break;
+      ethStatus = await view("status", { owner_id: ownerId });
+      if (!hasUnfinishedEthWork(ethStatus)) break;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      ethResults.push(`ERROR: ${message}`);
+      failures.push(`${ownerId} ETH: ${message}`);
+      break;
+    }
   }
   console.log(`  ETH: ${ethResults.join(" | ")}`);
   // Re-read after ETH because its claim consumes the contract's one outstanding action per chain.
-  const refreshed = await view("status", { owner_id: ownerId });
-  const btcResult = await runBtc(ownerId, refreshed, addresses);
-  console.log(`  BTC: ${btcResult}`);
+  try {
+    const refreshed = await view("status", { owner_id: ownerId });
+    const btcResult = await runBtc(ownerId, refreshed, addresses);
+    console.log(`  BTC: ${btcResult}`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`  BTC ERROR: ${message}`);
+    failures.push(`${ownerId} BTC: ${message}`);
+  }
   processed += 1;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`${ownerId}: ERROR: ${message}`);
+    failures.push(`${ownerId}: ${message}`);
+  }
 }
 console.log(`Eligible records processed: ${processed}`);
 if (processed === 0 && !requestedOwnerId) console.log("No unfinished Claimable records were found for this keeper.");
+if (failures.length) {
+  console.error(`Keeper finished with ${failures.length} error(s):`);
+  for (const failure of failures) console.error(`- ${failure}`);
+  process.exitCode = 1;
+}

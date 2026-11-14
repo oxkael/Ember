@@ -1,63 +1,34 @@
-# Basic Auction Contract 
+# Ember NEAR contract
 
-This directory contains a Rust contract that is used as part of the [Basic Auction Tutorial](https://docs.near.org/tutorials/auction/basic-auction).
+This crate implements Ember's shared NEAR Testnet contract. One contract stores a separate vault record for each owner; users do not deploy an individual contract per plan.
 
-The contract is a simple auction where you can place bids, view the highest bid, and claim the tokens at the end of the auction.
+## Responsibilities
 
-This repo showcases the basic anatomy of a smart contract application on NEAR Protocol that showcases how to store data in a contract, how to update the state, and then how to read it.
-There are also unit tests, integration tests, and CI/CD pipelines preconfigured for your reference.
+- Store each owner's receiving plan, shares, check-in timing, keeper authorization, and registered withdrawal addresses.
+- Derive an owner-specific signing path and request threshold signatures from the configured NEAR Chain Signatures signer.
+- Enforce lifecycle, permissions, fee limits, one outstanding action per chain, retry timing, and the 14-day delay for plan changes.
+- Expose owner count/list views for the shared keeper and a status view for the frontend.
 
----
+The contract does not directly hold Bitcoin or Ethereum balances. Those assets are held at addresses derived for each owner and are spent by signed transactions on Bitcoin Testnet and Ethereum Sepolia.
 
-## How to Build Locally?
+## Build and test
 
-Install [`cargo-near`](https://github.com/near/cargo-near) and run:
-
-```bash
-cargo near build
-```
-
-## How to Test Locally?
+Run unit tests from this directory:
 
 ```bash
 cargo test
 ```
 
-## How to Deploy?
-
-Deployment is automated with GitHub Actions CI/CD pipeline.
-To deploy manually, install [`cargo-near`](https://github.com/near/cargo-near) and run:
-
-If you deploy for debugging purposes:
+Build the WebAssembly contract and ABI on Linux with:
 
 ```bash
-cargo near deploy build-non-reproducible-wasm
+cargo near build non-reproducible-wasm --locked
 ```
 
-If you deploy production ready smart contract:
+The repository's **Contract build (no deploy)** workflow runs this build on GitHub's Linux runner. A successful build does not deploy the contract or migrate existing on-chain state.
 
-```bash
-cargo near deploy build-reproducible-wasm
-```
+## Deployment caution
 
-## Initialize the contract
+The deployed contract account is shared by all owner records. Changing Rust state layout requires a compatible migration or a fresh contract deployment; compiling the new crate alone does not update any deployed code or existing records. Confirm the target account, storage layout, and migration plan before deploying.
 
-```bash
-# on Linux / Windows WSL
-TWO_MINUTES_FROM_NOW=$(date -d '+2 minutes' +%s000000000)
-# on MacOS
-TWO_MINUTES_FROM_NOW=$(date -v+2M +%s000000000)
-
-near contract call-function as-transaction '<CONTRACT_ACCOUNT_ID>' init json-args '{"end_time": "'$TWO_MINUTES_FROM_NOW'", "auctioneer": "<AUCTIONEER_ACCOUNT_ID>"}' prepaid-gas '30.0 Tgas' attached-deposit '0 NEAR'
-```
-
-## Useful Links
-
-- [cargo-near](https://github.com/near/cargo-near) - NEAR smart contract development toolkit for Rust
-- [near CLI](https://near.cli.rs) - Interact with NEAR blockchain from command line
-- [NEAR Rust SDK Documentation](https://docs.near.org/sdk/rust/introduction)
-- [NEAR Documentation](https://docs.near.org)
-- [NEAR StackOverflow](https://stackoverflow.com/questions/tagged/nearprotocol)
-- [NEAR Discord](https://near.chat)
-- [NEAR Telegram Developers Community Group](https://t.me/neardev)
-- NEAR DevHub: [Telegram](https://t.me/neardevhub), [Twitter](https://twitter.com/neardevhub)
+The root [README](../README.md) describes the frontend and keeper flow. The public contract methods and test cases are documented alongside their implementation in `src/lib.rs`.

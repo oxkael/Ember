@@ -42,12 +42,12 @@ function ChainIllustration() {
   </div>;
 }
 
-function Landing({ onConnect, connecting, restoringWallet, error }) {
+function Landing({ onConnect, onDemo, connecting, restoringWallet, error }) {
   return <div className="landing-page">
     <header className="landing-nav">
       <a className="wordmark" href="#top"><Mark /><span>ember<small>PROTOCOL</small></span></a>
       <nav className="landing-links" aria-label="Page navigation"><a href="#how-it-works">How it works</a><a href="#why-near">Why NEAR</a><a href="#faq">FAQs</a></nav>
-      <button className="nav-connect" onClick={onConnect} disabled={connecting || restoringWallet}>{restoringWallet ? 'Checking wallet…' : connecting ? 'Connecting…' : 'Connect wallet'} <Arrow /></button>
+      <div className="landing-nav-actions"><button className="nav-demo" onClick={onDemo}>Judge demo</button><button className="nav-connect" onClick={onConnect} disabled={connecting || restoringWallet}>{restoringWallet ? 'Checking wallet…' : connecting ? 'Connecting…' : 'Connect wallet'} <Arrow /></button></div>
     </header>
 
     <main id="top">
@@ -56,7 +56,7 @@ function Landing({ onConnect, connecting, restoringWallet, error }) {
           <div className="hero-eyebrow"><span /> A BACKUP PLAN FOR YOUR DIGITAL ASSETS</div>
           <h1>Your assets deserve<br />a <em>plan B.</em></h1>
           <p className="hero-description">Ember helps you prepare for lost access, emergencies, or time away—with a check-in plan and destinations across Bitcoin and Ethereum.</p>
-          <div className="hero-actions"><button className="button-primary" onClick={onConnect} disabled={connecting || restoringWallet}>{restoringWallet ? 'Checking wallet session…' : connecting ? 'Connecting to NEAR…' : 'Connect NEAR wallet'} <Arrow /></button><a className="text-link" href="#how-it-works">Explore how it works <span><Arrow diagonal /></span></a></div>
+          <div className="hero-actions"><button className="button-primary" onClick={onConnect} disabled={connecting || restoringWallet}>{restoringWallet ? 'Checking wallet session…' : connecting ? 'Connecting to NEAR…' : 'Connect NEAR wallet'} <Arrow /></button><button className="demo-link" onClick={onDemo}>Explore the dashboard demo <Arrow diagonal /></button><a className="text-link" href="#how-it-works">How it works <span><Arrow diagonal /></span></a></div>
           <p className="hero-footnote">NEAR Testnet preview <span>·</span> Wallet connection loads the current plan</p>
           {error && <div className="connect-error" role="alert">{error}</div>}
         </div>
@@ -472,6 +472,35 @@ function Dashboard({ account, wallet, status, vaultId, loading, checkingIn, erro
   </div>;
 }
 
+function DemoDashboard({ onBack, onConnect }) {
+  return <div className="dashboard-page demo-dashboard">
+    <header className="dashboard-nav">
+      <a className="wordmark dashboard-wordmark" href="#top"><Mark /><span>ember<small>PROTOCOL</small></span></a>
+      <div className="dashboard-nav-center"><span className="testnet-indicator" /> JUDGE PREVIEW <span className="nav-divider">/</span> SAMPLE DATA</div>
+      <div className="wallet-menu"><button onClick={onBack}>Back to start</button><button className="demo-connect-button" onClick={onConnect}>Connect wallet</button></div>
+    </header>
+    <main className="dashboard-content">
+      <div className="demo-sample-banner" role="note"><strong>Read-only product preview</strong><span>This screen uses illustrative sample data. It is not connected to a wallet or live contract.</span></div>
+      <div className="dashboard-heading"><div><span className="eyebrow-label">EMBER PLAN · EXAMPLE</span><h1>Backup plan overview</h1><p>Explore the owner experience without installing or connecting a wallet.</p></div><button className="reload-button" onClick={onConnect}>Create your own plan <Arrow /></button></div>
+      <section className="dashboard-state-card">
+        <div className="state-card-top"><div><span className="eyebrow-label">PLAN STATUS · EXAMPLE</span><div className="status-label status-active"><i />Active</div></div><span className="read-only-badge">SIMULATED</span></div>
+        <div className="state-card-bottom"><div><span className="dashboard-stat-label">Example ETH balance</span><strong>0.420 ETH</strong></div><div><span className="dashboard-stat-label">Example BTC balance</span><strong>0.015 BTC</strong></div><div><span className="dashboard-stat-label">Check-in interval</span><strong>30 days</strong></div><button className="disabled-checkin" disabled title="Connect a NEAR wallet to submit a real check-in">Check in · preview</button></div>
+      </section>
+      <div className="demo-columns">
+        <section className="activity-panel demo-plan-panel"><div className="activity-panel-heading"><span className="eyebrow-label">RECEIVING ADDRESSES</span><h2>One plan, two destinations</h2></div>
+          <article className="demo-recipient"><div><span className="demo-index">01</span><strong>Personal backup wallet</strong><span className="share-pill">70%</span></div><p>Ethereum · Sepolia <code>0x71c…8D4a</code></p><p>Bitcoin · Testnet <code>tb1q…4s2k</code></p><small>Illustrative address only</small></article>
+          <article className="demo-recipient"><div><span className="demo-index">02</span><strong>Trusted contact</strong><span className="share-pill">30%</span></div><p>Ethereum · Sepolia <code>0x93A…c120</code></p><p>Bitcoin · Testnet <code>tb1q…8m5v</code></p><small>Illustrative address only</small></article>
+        </section>
+        <section className="activity-panel demo-automation-panel"><div className="activity-panel-heading"><span className="eyebrow-label">HOW IT WORKS</span><h2>NEAR coordinates the plan</h2></div>
+          <ol><li><b>1</b><span><strong>Check-ins keep the plan active</strong><small>The owner controls the timing and grace period.</small></span></li><li><b>2</b><span><strong>The shared keeper watches eligible records</strong><small>It starts the configured flow; it does not hold the BTC or ETH keys.</small></span></li><li><b>3</b><span><strong>NEAR Chain Signatures coordinate signing</strong><small>Native testnet transfers are prepared for the chosen addresses.</small></span></li></ol>
+          <div className="demo-technology-note"><span className="near-trust-icon">N</span><p><strong>Powered by NEAR Chain Signatures</strong><span>Sample view only · no network action is performed here.</span></p></div>
+        </section>
+      </div>
+      <div className="demo-bottom-cta"><div><strong>Ready to try Ember?</strong><span>Connect a NEAR Testnet wallet to derive addresses and create a live testnet plan.</span></div><button className="button-primary" onClick={onConnect}>Connect wallet <Arrow /></button></div>
+    </main>
+  </div>;
+}
+
 function App() {
   const connectorRef = useRef(null);
   const [account, setAccount] = useState(null);
@@ -587,6 +616,11 @@ function App() {
     } finally { setConnecting(false); }
   };
 
+  const connectFromDemo = () => {
+    setScreen('landing');
+    void connect();
+  };
+
   const checkIn = async () => {
     if (!wallet || !account || !vaultId) return;
     setCheckingIn(true);
@@ -607,9 +641,11 @@ function App() {
     finally { setWallet(null); setAccount(null); setStatus(null); setDepositAddresses(null); setDepositBalances({ ethereum: {}, bitcoin: {} }); setRefreshingBalances(false); setAddressError(''); setError(''); setActionError(''); setScreen('landing'); }
   };
 
-  return screen === 'dashboard' && account
+  return screen === 'demo'
+    ? <DemoDashboard onBack={() => setScreen('landing')} onConnect={connectFromDemo} />
+    : screen === 'dashboard' && account
     ? <Dashboard account={account} wallet={wallet} status={status} vaultId={vaultId} loading={loading} checkingIn={checkingIn} error={error} actionError={actionError} depositAddresses={depositAddresses} depositBalances={depositBalances} refreshingBalances={refreshingBalances} addressError={addressError} onReload={() => loadStatus(account)} onRefreshBalances={() => loadDepositBalances(depositAddresses)} onDisconnect={disconnect} onSetupComplete={() => loadStatus(account)} onCheckIn={checkIn} />
-    : <Landing onConnect={connect} connecting={connecting} restoringWallet={restoringWallet} error={error} />;
+    : <Landing onConnect={connect} onDemo={() => setScreen('demo')} connecting={connecting} restoringWallet={restoringWallet} error={error} />;
 }
 
 createRoot(document.getElementById('root')).render(<React.StrictMode><App /></React.StrictMode>);

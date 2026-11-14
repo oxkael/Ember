@@ -1,128 +1,79 @@
-# NEAR + Ethereum Sepolia Inheritance Vault (Dead Man's Switch)
+# Ember Protocol
 
-An end-to-end decentralized Dead Man's Switch and inheritance protocol implemented on **NEAR Protocol** controlling **Ethereum Sepolia** native funds using NEAR **Chain Signatures (MPC)**.
+**Ember is an automated backup plan for digital assets.** An owner chooses receiving addresses and shares, then checks in on a schedule they control. If the check-in and grace periods expire, an authorized keeper can start the plan's testnet transfers.
 
----
+Ember demonstrates NEAR Chain Signatures coordinating native Bitcoin and Ethereum transactions from one NEAR contract. The current demo targets **Bitcoin Testnet** and **Ethereum Sepolia**; it does not move mainnet funds.
 
-## 🏛️ Architecture Overview
+## Try the judge preview
 
-The system uses a smart contract deployed on NEAR testnet (`vault-heirvault01.testnet`) that acts as a decentralized custodian. Instead of holding Ethereum private keys in custody, the vault controls an Ethereum Sepolia address derived deterministically via NEAR's Multi-Party Computation (MPC) contract `v1.signer-prod.testnet`.
+Choose **Judge demo** on the landing page to open a wallet-free, read-only walkthrough. It uses sample values and addresses only; it does not read a real contract, connect a wallet, or send transactions.
 
-```mermaid
-flowchart TD
-    Owner[Owner Account] -->|1. Setup Plan & Heartbeat Ping| Vault[NEAR Vault Contract]
-    Vault -->|2. Monitors Heartbeat| SM["State Machine: Active -> Warning -> Grace -> Claimable"]
-    
-    subgraph When Claimable
-        Heir[Designated Heir] -->|3. Call claim| Vault
-        Vault -->|4. Build EIP-2930 Tx & Check Fee Caps| Vault
-        Vault -->|5. Request Sign| MPC["v1.signer-prod.testnet (Chain Signatures)"]
-        MPC -->|6. Return ECDSA RSV Signature| Vault
-        Vault -->|7. Store Signed Hash & Set Status: Signed| Vault
-        Relayer[Relayer / Executor] -->|8. Verify Hash Match & Broadcast| Sepolia[(Ethereum Sepolia Network)]
-        Sepolia -->|9. Native ETH Transfer| HeirEVM[Heir EVM Wallet]
-        Heir -->|10. Call mark_done| Vault
-    end
-```
+To create or manage a live testnet plan, connect a NEAR Testnet wallet. The wallet is required to authorize setup, check-ins, withdrawals, and other contract actions. Do not enter a seed phrase or private key into Ember.
 
----
+## How it works
 
-## 🔑 Deployed Contracts & Testnet Accounts
+1. The browser derives owner-specific Bitcoin and Ethereum addresses from the NEAR Chain Signatures public key, the shared contract ID, and a path tied to the connected NEAR account.
+2. The owner funds those addresses and submits a plan with receiving addresses, shares, a check-in interval, a grace period, and optionally the shared keeper account.
+3. The NEAR contract stores an independent record for each owner and evaluates its lifecycle from NEAR block time.
+4. When a record is `Claimable`, the scheduled keeper checks its balances, asks the contract to request MPC signatures, reconstructs and checks the signed transaction, broadcasts to the destination testnet, and records the reported transaction hash after confirmation.
 
-| Entity | Address / Identifier | Network | Notes |
-|---|---|---|---|
-| **Vault Contract** | `vault-heirvault01.testnet` | NEAR Testnet | [View on Explorer](https://explorer.testnet.near.org/accounts/vault-heirvault01.testnet) |
-| **Owner Account** | `owner-heirvault01.testnet` | NEAR Testnet | Authorized to `ping` or `setup` |
-| **Heir 1** | `heir1-heirvault01.testnet` | NEAR Testnet | 50% Share (`0x5E7e7e39252a159e64a92161f99290E2bFDc42ee`) |
-| **Heir 2** | `heir2-heirvault01.testnet` | NEAR Testnet | 50% Share (`0x8AFd2Ad161ff90424eD62A43f6dF6905d96a423d`) |
-| **MPC Signer Contract** | `v1.signer-prod.testnet` | NEAR Testnet | Root Key: `secp256k1:4NfTiv3...` |
-| **Vault EVM Address** | `0xDAe49575b025e1f21b3238605fE1887c97da210a` | Sepolia | Path: `ethereum-1` (Deterministic MPC) |
+The keeper uses a NEAR key only for its authorized calls to the Ember contract. NEAR Chain Signatures provide the threshold signing path for Bitcoin and Ethereum. Bitcoin distribution is one transaction with an output for each configured receiving address; Ethereum distribution processes one receiving-address slot at a time.
 
----
+The contract also supports owner withdrawals to registered addresses before `Claimable`, delayed receiving-address or plan changes, and check-ins. Plan changes have a 14-day delay. See the contract and frontend for the current method behavior and limitations.
 
-## ⚙️ State Machine Specification
+## Automatic keeper
 
-The vault contract transitions through four distinct states based on elapsed time since the owner's last heartbeat ping:
+The GitHub Actions workflow is configured to check for eligible records every five minutes and also supports a manual run. Scheduled workflows run from the repository's **default branch** after the workflow file is merged or pushed there. GitHub may delay scheduled jobs, so the interval is a polling target, not an exact execution time.
 
-1. **Active**: `time_elapsed < heartbeat_interval * 0.75` (Normal operation, all timers healthy).
-2. **Warning**: `time_elapsed >= heartbeat_interval * 0.75 && time_elapsed < heartbeat_interval` (Owner is approaching expiration).
-3. **Grace Period**: `time_elapsed >= heartbeat_interval && time_elapsed < (heartbeat_interval + grace_period)` (Dead man's switch triggered; owner can still avert execution by calling `ping()`).
-4. **Claimable**: `time_elapsed >= (heartbeat_interval + grace_period)` (Vault is permanently unlockable; heir slots can be claimed and broadcasted).
+Configure these GitHub repository variables:
 
----
+- `EMBER_CONTRACT_ID` — the deployed shared contract account ID.
+- `EMBER_KEEPER_ACCOUNT_ID` — the dedicated shared keeper NEAR account ID.
 
-## 🛡️ Security & Attack Test Results (Recorded Live on Testnet)
+Configure this GitHub repository secret:
 
-All safety checks and invariants were verified on the live NEAR testnet deployment:
+- `EMBER_KEEPER_PRIVATE_KEY` — the keeper's NEAR function-call key, scoped to the Ember contract and only the keeper methods. Never use an owner or contract-account key here.
 
-| # | Test Scenario | Expected Outcome | Live Test Result |
-|---|---|---|---|
-| 1 | **Non-owner calls `ping`** | Rejected | ✅ **PASSED**: Panicked with `Only owner can call this method` |
-| 2 | **Early claim during `Grace` or `Active`** | Rejected | ✅ **PASSED**: Panicked with `Vault is not claimable yet: must pass grace period` |
-| 3 | **Non-heir calls `claim`** | Rejected | ✅ **PASSED**: Panicked with `Only the designated heir can claim this slot` |
-| 4 | **Claim of another heir's slot** | Rejected | ✅ **PASSED**: Panicked with `Only the designated heir can claim this slot` |
-| 5 | **Claim of an already `Done` slot** | Rejected | ✅ **PASSED**: Panicked with `Slot is already Done` |
-| 6 | **Setup after `Grace` starts** | Rejected | ✅ **PASSED**: Panicked with `Setup is blocked during Grace or Claimable state` |
-| 7 | **Setup after a claim has started** | Rejected | ✅ **PASSED**: Panicked with `Setup is blocked during Grace or Claimable state` / `Setup is blocked once any heir slot distribution has started` |
-| 8 | **Fee above absolute cap (> 0.002 ETH)** | Rejected | ✅ **PASSED**: Panicked with `Estimated fee exceeds absolute fee cap (0.002 ETH)` |
-| 9 | **Fee above percentage cap (> 5% of share)** | Rejected | ✅ **PASSED**: Panicked with `Estimated fee exceeds 5% of the heir's share` |
-| 10 | **Claim with extra `tx_payload` parameter** | Rejected | ✅ **PASSED**: Denied unknown field at deserialization time |
-| 11 | **Unit Test: EIP-2930 Serialization & Hash** | Validated | ✅ **PASSED**: Target Keccak256 hash `e88cf8dc...` verified |
+Each owner's plan must explicitly authorize that keeper account. The keeper account needs NEAR for its own transaction fees. The contract pays the MPC signing deposit. For setup and operational details, see [docs/KEEPER_RUNBOOK.md](docs/KEEPER_RUNBOOK.md).
 
----
+## Test workflow
 
-## 🚀 Running the Project
+1. Use a NEAR Testnet wallet and test-only receiving wallets. Fund the owner with test NEAR for contract calls.
+2. Connect to Ember. Copy the derived Bitcoin Testnet and Ethereum Sepolia addresses and fund them using testnet faucets.
+3. Add receiving addresses and shares totaling 100%, configure a keeper if you want automation, and choose short test-only timing values.
+4. Approve setup and check in. Confirm the contract status and balances in the dashboard.
+5. For a distribution test, wait until the configured check-in and grace periods expire. The scheduled keeper polls eligible records; a manual run is also available under GitHub Actions.
+6. Check the contract activity and the relevant public testnet explorers. Status text distinguishes reported delivery from independently displayed chain confirmations.
 
-### 1. Check Status
+Keep testnet values small. Public RPC and indexer availability can delay balance reads, signing, broadcast, or confirmation.
+
+## Develop and verify
+
+Install Node.js 22 or later and Rust. From the repository root:
+
 ```bash
-near contract call-function as-read-only vault-heirvault01.testnet status json-args '{}' network-config testnet now
+npm ci
+npm test
+npm run build
 ```
 
-### 2. Owner Ping
+Run the contract tests from `vault/`:
+
 ```bash
-near contract call-function as-transaction vault-heirvault01.testnet ping json-args '{}' prepaid-gas '100.0 Tgas' attached-deposit '0 NEAR' sign-as owner-heirvault01.testnet network-config testnet sign-with-keychain send
+cargo test
 ```
 
-### 3. Run Automated Claim & Relayer
-```bash
-cd near-multichain
-node -e "
-import('./orchestrator.mjs').then(async m => {
-  const res = await m.processSlot(0);
-  await m.broadcastAndMarkDone(res);
-});
-"
-```
+The Linux **Contract build (no deploy)** GitHub Actions workflow runs `cargo near build` and ABI generation. Building does not deploy or migrate the live testnet contract.
 
-### 4. Launch 3-Screen Frontend
-Open `frontend/index.html` directly in your browser or serve with:
-```bash
-npx serve frontend
-```
+## Repository map
 
----
+- `frontend/` — React/Vite landing page, judge demo, wallet connection, dashboard, and contract adapter.
+- `vault/` — NEAR Rust contract and unit tests.
+- `scripts/keeper-run-now.mjs` — keeper scan, signing orchestration, broadcast, and reporting.
+- `scripts/keeper-logic.mjs` and `tests/` — keeper transaction logic and JavaScript tests.
+- `.github/workflows/` — testnet keeper automation and contract build workflow.
+- `docs/KEEPER_RUNBOOK.md` — keeper configuration and operating notes.
 
-## 📋 Verified On-Chain Transactions (Equal 50/50 Distribution)
+## Roadmap
 
-### NEAR Testnet
-- **Deploy Contract**: [`8z3roTeBdcZHSbyJ6KSBSrdjk7LhNXyoxjJD235CdnYf`](https://explorer.testnet.near.org/transactions/8z3roTeBdcZHSbyJ6KSBSrdjk7LhNXyoxjJD235CdnYf)
-- **Init Call (`new`)**: [`12m9oRt3xfviondHNeMLtuPUYaDSHaKsTMTku4V2Yeei`](https://explorer.testnet.near.org/transactions/12m9oRt3xfviondHNeMLtuPUYaDSHaKsTMTku4V2Yeei)
-- **Setup Plan (`setup`)**: [`Gga3erJ9w1KWrC8f1SybhxtivKGYSXyZG1M4kfF7RyiR`](https://explorer.testnet.near.org/transactions/Gga3erJ9w1KWrC8f1SybhxtivKGYSXyZG1M4kfF7RyiR)
-- **Heir 1 Claim Slot #0**: [`5Yf3erRB88MWpgFCRpCYtZ5SHC4yeKDA1dcNwhvDWHAR`](https://explorer.testnet.near.org/transactions/5Yf3erRB88MWpgFCRpCYtZ5SHC4yeKDA1dcNwhvDWHAR)
-- **Heir 1 Mark Done**: [`7hTxj2dKzA5hSM9nLHXbfAGvXRZgPjkGarZZUPBwg3J4`](https://explorer.testnet.near.org/transactions/7hTxj2dKzA5hSM9nLHXbfAGvXRZgPjkGarZZUPBwg3J4)
-- **Heir 2 Claim Slot #1**: [`5WM4GRy95DzrMJyWkS345q7VGBWCiwz385EiTJQCs276`](https://explorer.testnet.near.org/transactions/5WM4GRy95DzrMJyWkS345q7VGBWCiwz385EiTJQCs276)
-- **Heir 2 Mark Done**: [`Bp9e7H4eKG2ce8NESdzZsWwwK1UoSMkAsHjmpniJxsmH`](https://explorer.testnet.near.org/transactions/Bp9e7H4eKG2ce8NESdzZsWwwK1UoSMkAsHjmpniJxsmH)
-
-### Ethereum Sepolia Native Transfers
-- **Vault Address**: [`0xDAe49575b025e1f21b3238605fE1887c97da210a`](https://sepolia.etherscan.io/address/0xDAe49575b025e1f21b3238605fE1887c97da210a)
-- **Heir 1 Wallet**: [`0x5E7e7e39252a159e64a92161f99290E2bFDc42ee`](https://sepolia.etherscan.io/address/0x5E7e7e39252a159e64a92161f99290E2bFDc42ee)
-- **Heir 2 Wallet**: [`0x8AFd2Ad161ff90424eD62A43f6dF6905d96a423d`](https://sepolia.etherscan.io/address/0x8AFd2Ad161ff90424eD62A43f6dF6905d96a423d)
-- **Slot #0 Broadcast (0.00649348 ETH)**: [`0x1b900dd011a0f26efe3fd08754cd732045610abd13b8b0c920aa5ed499c06dc4`](https://sepolia.etherscan.io/tx/0x1b900dd011a0f26efe3fd08754cd732045610abd13b8b0c920aa5ed499c06dc4)
-  - Block: `#12029758`
-  - Status: `1` (SUCCESS)
-  - Gas Limit: `250,000`
-- **Slot #1 Broadcast (0.00649348 ETH)**: [`0xe72a44753d91f7c92a7d1ee8f9900c9eca49f4044be4d31723035965c54f0d87`](https://sepolia.etherscan.io/tx/0xe72a44753d91f7c92a7d1ee8f9900c9eca49f4044be4d31723035965c54f0d87)
-  - Block: `#12029773`
-  - Status: `1` (SUCCESS)
-  - Gas Limit: `250,000`
-- **Total Transferred**: **0.01298696 ETH** delivered equally (50/50 split down to the exact wei) from initial snapshot balance.
+The current implementation covers NEAR Testnet, Bitcoin Testnet, and Ethereum Sepolia. Other networks are candidates for future support only after their NEAR Chain Signatures signing and transaction workflows are confirmed and tested.
