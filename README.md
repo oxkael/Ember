@@ -4,7 +4,7 @@
 
 Ember demonstrates NEAR Chain Signatures coordinating native Bitcoin and Ethereum transactions from one NEAR contract. The current demo targets **Bitcoin Testnet** and **Ethereum Sepolia**; it does not move mainnet funds.
 
-[Demo video: DEMO VIDEO LINK] | [Announcement post: X POST LINK]
+[Demo video: https://x.com/mrkaelx/status/2121748154509131886?a=040BdTajbcx3Rh42V6A&s=20] |
 
 ## Why Ember
 
