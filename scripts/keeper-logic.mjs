@@ -2,6 +2,25 @@ export function enumName(value) {
   return typeof value === "string" ? value : Object.keys(value ?? {})[0] ?? "Unknown";
 }
 
+export function hasUnfinishedClaimWork(status) {
+  const ethUnfinished = Array.isArray(status?.heirs) && status.heirs.some((slot) => enumName(slot.status) !== "Done");
+  const btcUnfinished = enumName(status?.btc_slot?.status) !== "Done";
+  return ethUnfinished || btcUnfinished;
+}
+
+export function hasUnfinishedEthWork(status) {
+  return Array.isArray(status?.heirs) && status.heirs.some((slot) => enumName(slot.status) !== "Done");
+}
+
+export function selectOwnerIds(owners, requestedOwnerId = "") {
+  const ownerId = requestedOwnerId.trim();
+  if (!ownerId) return owners;
+  if (!owners.includes(ownerId)) {
+    throw new Error(`Requested owner ${ownerId} is not present in the contract owner registry.`);
+  }
+  return [ownerId];
+}
+
 export function parseMpcSignature(raw) {
   if (typeof raw !== "string") throw new Error("Contract did not return a serialized MPC signature.");
   let sig;
